@@ -10,6 +10,7 @@ const multer = require("multer");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const socket = io(BASE_URL);
 
 const app = express();
 cloudinary.config({
@@ -332,6 +333,12 @@ app.patch("/memories/:id/position", (req, res) => {
       res.json({
         success: true
       });
+      io.emit("memoryMoved", {
+  id: req.params.id,
+  x,
+  y,
+  rotate
+});
     }
   );
 });
@@ -532,10 +539,49 @@ app.patch("/videos/:id/position", (req, res) => {
     }
   );
 });
+socket.on("memoryMoved", (data) => {
+  const card = document.querySelector(`[data-id="${data.id}"]`);
+  if (!card) return;
 
+  positions[data.id] = {
+    x: data.x,
+    y: data.y,
+    rotate: data.rotate
+  };
+
+  card.style.left = data.x + "px";
+  card.style.top = data.y + "px";
+  card.style.transform = `rotate(${data.rotate}deg)`;
+});
+
+socket.on("videoMoved", (data) => {
+  const card = document.querySelector(`[data-id="${data.id}"]`);
+  if (!card) return;
+
+  videoPositions[data.id] = {
+    x: data.x,
+    y: data.y,
+    rotate: data.rotate
+  };
+
+  card.style.left = data.x + "px";
+  card.style.top = data.y + "px";
+  card.style.transform = `rotate(${data.rotate}deg)`;
+});
 // ─────────────────────────────────────────────
 // START SERVER
 // ─────────────────────────────────────────────
-app.listen(PORT, "0.0.0.0", () => {
+const http = require("http");
+const { Server } = require("socket.io");
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
+
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

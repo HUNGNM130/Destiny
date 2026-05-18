@@ -210,6 +210,7 @@ async function loadMemories() {
     memories.forEach((memory, index) => {
       const card = document.createElement("div");
       card.className = "memory-card";
+      card.dataset.id = memory.id;
       const pos = getInitialPos(memory, index, cols);
       positions[memory.id] = pos;
       if (memory.pos_x == null) savePosition(memory.id);
