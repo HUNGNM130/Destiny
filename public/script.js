@@ -1,5 +1,7 @@
-const API_URL       = "http://localhost:3000/memories";
-const VIDEO_API_URL = "http://localhost:3000/videos";
+const BASE_URL = "https://destiny-s88d.onrender.com";
+
+const API_URL = `${BASE_URL}/memories`;
+const VIDEO_API_URL = `${BASE_URL}/videos`;
 
 // ── Flatpickr ──────────────────────────────────────────
 const datePicker = flatpickr("#date", {
@@ -219,7 +221,7 @@ async function loadMemories() {
       const dateStr = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
       card.innerHTML = `
         ${memory.image
-          ? `<img src="http://localhost:3000/images/${memory.image}?t=${Date.now()}" alt="${memory.title}" loading="lazy"/>`
+          ? `<img src="${BASE_URL}/images/${memory.image}?t=${Date.now()}" alt="${memory.title}" loading="lazy"/>`
           : `<div style="width:100%;aspect-ratio:1/1;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:3rem;">♥</div>`
         }
         <div class="card-body">
@@ -267,7 +269,7 @@ async function loadVideos() {
       card.style.zIndex    = 1;
       const d       = new Date(video.date);
       const dateStr = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
-      const videoSrc = `http://localhost:3000/videos-file/${video.filename}`;
+      const videoSrc = `${BASE_URL}/videos-file/${video.filename}`;
       card.innerHTML = `
         <div class="video-thumb">
           <video src="${videoSrc}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;pointer-events:none;"></video>
@@ -336,7 +338,7 @@ function editMemory(memory) {
   document.getElementById("description").value = memory.description || "";
   if (memory.image) {
     const preview = document.getElementById("preview");
-    preview.src = `http://localhost:3000/images/${memory.image}?t=${Date.now()}`;
+    preview.src = `${BASE_URL}/images/${memory.image}?t=${Date.now()}`;
     preview.style.display = "block";
   }
 }
