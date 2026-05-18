@@ -50,9 +50,9 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
-    console.error("❌ Lỗi kết nối MySQL:", err.message);
-    process.exit(1);
-  }
+  console.error("❌ Lỗi kết nối MySQL:", err.message);
+  return;
+}
 
   console.log("✅ Đã kết nối MySQL!");
 
