@@ -44,20 +44,27 @@ function getInitialPos(item, index, cols) {
 }
 
 function savePosition(id, isVideo = false) {
-  const p   = isVideo ? videoPositions[id] : positions[id];
-  const url = isVideo ? `${VIDEO_API_URL}/${id}/position` : `${API_URL}/${id}/position`;
+  const p = isVideo
+    ? videoPositions[id]
+    : positions[id];
+
+  const url = isVideo
+    ? `${VIDEO_API_URL}/${id}/position`
+    : `${API_URL}/${id}/position`;
+
   if (!p) return;
+
   fetch(url, {
-  method: "PATCH",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    x,
-    y,
-    rotate
-  })
-});
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      x: p.x,
+      y: p.y,
+      rotate: p.rotate
+    })
+  });
 }
 
 // ── Drag & Drop ────────────────────────────────────────
