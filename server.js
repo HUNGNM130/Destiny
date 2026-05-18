@@ -1,4 +1,6 @@
 require("dotenv").config();
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 console.log("HOST:", process.env.DB_HOST);
 console.log("USER:", process.env.DB_USER);
 console.log("PORT:", process.env.DB_PORT);
@@ -10,7 +12,11 @@ const path = require("path");
 const fs = require("fs");
 
 const app = express();
-
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 // ─────────────────────────────────────────────
 // PORT
 // ─────────────────────────────────────────────
@@ -29,11 +35,6 @@ app.use(express.json());
 // STATIC
 // ─────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "public")));
-
-app.use(
-  "/images",
-  express.static(path.join(__dirname, "uploads"))
-);
 
 app.use(
   "/videos-file",
@@ -106,19 +107,11 @@ if (!fs.existsSync("uploads-video")) {
 // ─────────────────────────────────────────────
 // MULTER
 // ─────────────────────────────────────────────
-const imageStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-
-  filename: (req, file, cb) => {
-    cb(
-      null,
-      Date.now() +
-      "-" +
-      Math.round(Math.random() * 1e9) +
-      path.extname(file.originalname)
-    );
+const imageStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "love-diary",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"]
   }
 });
 
@@ -193,8 +186,8 @@ app.post(
     const { title, date, description } = req.body;
 
     const image = req.file
-      ? req.file.filename
-      : null;
+  ? req.file.path
+  : null;
 
     db.query(
       "INSERT INTO memories (title,date,description,image) VALUES (?,?,?,?)",
@@ -233,16 +226,6 @@ app.put(
         (err, rows) => {
 
           if (!err && rows[0]?.image) {
-
-            const oldFile = path.join(
-              __dirname,
-              "uploads",
-              rows[0].image
-            );
-
-            if (fs.existsSync(oldFile)) {
-              fs.unlinkSync(oldFile);
-            }
           }
         }
       );
@@ -253,7 +236,7 @@ app.put(
           title,
           date,
           description,
-          req.file.filename,
+          req.file.path,
           id
         ],
         (err) => {
@@ -308,16 +291,6 @@ app.delete("/memories/:id", (req, res) => {
     (err, rows) => {
 
       if (!err && rows[0]?.image) {
-
-        const filePath = path.join(
-          __dirname,
-          "uploads",
-          rows[0].image
-        );
-
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
       }
 
       db.query(
@@ -394,14 +367,14 @@ app.post(
     const { title, date, description } = req.body;
 
     const filename = req.file
-      ? req.file.filename
-      : null;
+  ? req.file.filename
+  : null;
 
-    if (!filename) {
-      return res.status(400).json({
-        error: "Chưa có file video"
-      });
-    }
+if (!filename) {
+  return res.status(400).json({
+    error: "Chưa có file video"
+  });
+}
 
     db.query(
       "INSERT INTO videos (title,date,description,filename) VALUES (?,?,?,?)",
@@ -440,16 +413,6 @@ app.put(
         (err, rows) => {
 
           if (!err && rows[0]?.filename) {
-
-            const oldFile = path.join(
-              __dirname,
-              "uploads-video",
-              rows[0].filename
-            );
-
-            if (fs.existsSync(oldFile)) {
-              fs.unlinkSync(oldFile);
-            }
           }
         }
       );
