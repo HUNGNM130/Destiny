@@ -2,6 +2,7 @@ const BASE_URL = "https://destiny-s88d.onrender.com";
 
 const API_URL = `${BASE_URL}/memories`;
 const VIDEO_API_URL = `${BASE_URL}/videos`;
+const socket = io(BASE_URL);
 
 // ── Flatpickr ──────────────────────────────────────────
 const datePicker = flatpickr("#date", {

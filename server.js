@@ -10,9 +10,17 @@ const multer = require("multer");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
-const socket = io(BASE_URL);
+const http = require("http");
+const { Server } = require("socket.io");
 
 const app = express();
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
