@@ -21,6 +21,27 @@ const io = new Server(server, {
     origin: "*"
   }
 });
+
+io.on("connection", (socket) => {
+
+  console.log("🟢 User connected");
+
+  socket.on("moveMemory", (data) => {
+
+    socket.broadcast.emit("memoryMoved", data);
+  });
+
+  socket.on("moveVideo", (data) => {
+
+    socket.broadcast.emit("videoMoved", data);
+  });
+
+  socket.on("disconnect", () => {
+
+    console.log("🔴 User disconnected");
+  });
+
+});
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
