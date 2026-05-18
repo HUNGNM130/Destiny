@@ -180,7 +180,7 @@ function startConfetti() {
 // ══════════════════════════════════════════════════════
 //  3. BÓNG BAY BAY LÊN
 // ══════════════════════════════════════════════════════
-const BALLOON_EMOJIS = ["🎈","🎀","🎊","🎁","🎂"];
+const BALLOON_EMOJIS = ["💞","🍀","🐳","✨","🩵"];
 
 function spawnBalloon() {
   const el = document.createElement("div");
@@ -248,7 +248,7 @@ function schedulePhaohoa() {
 // ══════════════════════════════════════════════════════
 //  5. TIM / SAO BAY
 // ══════════════════════════════════════════════════════
-const FLOATERS = ["❤️","💕","💖","💗","✨","⭐","🌟","💫","🌸","🦋"];
+const FLOATERS = ["✨","🌟","🩵","🍀","🐳"];
 
 function spawnFloater() {
   const el = document.createElement("div");
