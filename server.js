@@ -323,12 +323,13 @@ app.delete("/memories/:id", (req, res) => {
 });
 
 // UPDATE memory position
-app.patch("/videos/:id/position", (req, res) => {
+// UPDATE memory position
+app.patch("/memories/:id/position", (req, res) => {
 
   const { x, y, rotate } = req.body;
 
   db.query(
-    "UPDATE videos SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
+    "UPDATE memories SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
     [x, y, rotate, req.params.id],
     (err) => {
 
@@ -342,7 +343,7 @@ app.patch("/videos/:id/position", (req, res) => {
         success: true
       });
 
-      io.emit("videoMoved", {
+      io.emit("memoryMoved", {
         id: req.params.id,
         x,
         y,
@@ -527,6 +528,7 @@ app.delete("/videos/:id", (req, res) => {
 });
 
 // UPDATE video position
+// UPDATE video position
 app.patch("/videos/:id/position", (req, res) => {
 
   const { x, y, rotate } = req.body;
@@ -544,6 +546,13 @@ app.patch("/videos/:id/position", (req, res) => {
 
       res.json({
         success: true
+      });
+
+      io.emit("videoMoved", {
+        id: req.params.id,
+        x,
+        y,
+        rotate
       });
     }
   );
