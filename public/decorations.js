@@ -11,10 +11,13 @@ let animFrameId  = null;
 
 // ── Khởi động khi load trang ──────────────────────────
 window.addEventListener("load", () => {
+  decoActive = false;
+
   buildToggleBtn();
-  buildStringLights();
   buildCanvas();
-  startAll();
+
+  const btn = document.getElementById("decoToggleBtn");
+  btn.innerHTML = "🎉 Bật trang trí";
 });
 
 // ── Nút bật/tắt ───────────────────────────────────────
@@ -28,17 +31,22 @@ function buildToggleBtn() {
 
 function toggleDeco() {
   decoActive = !decoActive;
+
   const btn = document.getElementById("decoToggleBtn");
+
   if (decoActive) {
     btn.innerHTML = "🎉 Tắt trang trí";
+
     buildStringLights();
     startAll();
+
   } else {
+
     btn.innerHTML = "🎉 Bật trang trí";
+
     stopAll();
   }
 }
-
 function startAll() {
   startConfetti();
   scheduleBalloonsLoop();
