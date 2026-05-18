@@ -323,12 +323,12 @@ app.delete("/memories/:id", (req, res) => {
 });
 
 // UPDATE memory position
-app.patch("/memories/:id/position", (req, res) => {
+app.patch("/videos/:id/position", (req, res) => {
 
   const { x, y, rotate } = req.body;
 
   db.query(
-    "UPDATE memories SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
+    "UPDATE videos SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
     [x, y, rotate, req.params.id],
     (err) => {
 
@@ -341,12 +341,13 @@ app.patch("/memories/:id/position", (req, res) => {
       res.json({
         success: true
       });
-      io.emit("memoryMoved", {
-  id: req.params.id,
-  x,
-  y,
-  rotate
-});
+
+      io.emit("videoMoved", {
+        id: req.params.id,
+        x,
+        y,
+        rotate
+      });
     }
   );
 });
@@ -547,49 +548,9 @@ app.patch("/videos/:id/position", (req, res) => {
     }
   );
 });
-socket.on("memoryMoved", (data) => {
-  const card = document.querySelector(`[data-id="${data.id}"]`);
-  if (!card) return;
-
-  positions[data.id] = {
-    x: data.x,
-    y: data.y,
-    rotate: data.rotate
-  };
-
-  card.style.left = data.x + "px";
-  card.style.top = data.y + "px";
-  card.style.transform = `rotate(${data.rotate}deg)`;
-});
-
-socket.on("videoMoved", (data) => {
-  const card = document.querySelector(`[data-id="${data.id}"]`);
-  if (!card) return;
-
-  videoPositions[data.id] = {
-    x: data.x,
-    y: data.y,
-    rotate: data.rotate
-  };
-
-  card.style.left = data.x + "px";
-  card.style.top = data.y + "px";
-  card.style.transform = `rotate(${data.rotate}deg)`;
-});
 // ─────────────────────────────────────────────
 // START SERVER
 // ─────────────────────────────────────────────
-const http = require("http");
-const { Server } = require("socket.io");
-
-const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: {
-    origin: "*"
-  }
-});
-
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

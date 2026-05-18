@@ -191,7 +191,54 @@ function resetRotate() {
   if (deg)   deg.textContent = "0°";
   if (cropper) cropper.rotateTo(0);
 }
+// ── SOCKET REALTIME ──────────────────────────
 
+socket.on("memoryMoved", (data) => {
+  const card = document.querySelector(
+    `.memory-card[data-id="${data.id}"]`
+  );
+
+  if (!card) return;
+
+  positions[data.id] = {
+    x: data.x,
+    y: data.y,
+    rotate: data.rotate
+  };
+
+  card.style.left = data.x + "px";
+  card.style.top = data.y + "px";
+  card.style.transform = `rotate(${data.rotate}deg)`;
+});
+
+socket.on("videoMoved", (data) => {
+  const cards = document.querySelectorAll(".video-card");
+
+  let target = null;
+
+  cards.forEach((c) => {
+    const btn = c.querySelector(".delete-btn");
+
+    if (
+      btn &&
+      btn.getAttribute("onclick")?.includes(`(${data.id})`)
+    ) {
+      target = c;
+    }
+  });
+
+  if (!target) return;
+
+  videoPositions[data.id] = {
+    x: data.x,
+    y: data.y,
+    rotate: data.rotate
+  };
+
+  target.style.left = data.x + "px";
+  target.style.top = data.y + "px";
+  target.style.transform = `rotate(${data.rotate}deg)`;
+});
 // ── Load Memories ──────────────────────────────────────
 async function loadMemories() {
   const container = document.getElementById("memoryContainer");
@@ -262,6 +309,7 @@ async function loadVideos() {
     videos.forEach((video, index) => {
       const card = document.createElement("div");
       card.className = "video-card";
+      card.dataset.id = video.id;
       const pos = getInitialPos(video, index, cols);
       videoPositions[video.id] = pos;
       if (video.pos_x == null) savePosition(video.id, true);
