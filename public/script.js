@@ -43,28 +43,23 @@ function getInitialPos(item, index, cols) {
   };
 }
 
-function savePosition(id, isVideo = false) {
+function emitMove(id, isVideo = false) {
+
   const p = isVideo
     ? videoPositions[id]
     : positions[id];
 
-  const url = isVideo
-    ? `${VIDEO_API_URL}/${id}/position`
-    : `${API_URL}/${id}/position`;
-
   if (!p) return;
 
-  fetch(url, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+  socket.emit(
+    isVideo ? "moveVideo" : "moveMemory",
+    {
+      id,
       x: p.x,
       y: p.y,
       rotate: p.rotate
-    })
-  });
+    }
+  );
 }
 
 // ── Drag & Drop ────────────────────────────────────────
@@ -80,6 +75,9 @@ document.addEventListener("mousemove", (e) => {
   store[dragState.id].y = dragState.origY + dy;
   dragState.card.style.left = store[dragState.id].x + "px";
   dragState.card.style.top  = store[dragState.id].y + "px";
+  
+
+  emitMove(dragState.id, dragState.isVideo);
 });
 
 document.addEventListener("mouseup", () => {
@@ -102,6 +100,8 @@ document.addEventListener("touchmove", (e) => {
   store[dragState.id].y = dragState.origY + dy;
   dragState.card.style.left = store[dragState.id].x + "px";
   dragState.card.style.top  = store[dragState.id].y + "px";
+
+  emitMove(dragState.id, dragState.isVideo);
   e.preventDefault();
 }, { passive: false });
 
@@ -219,6 +219,7 @@ socket.on("memoryMoved", (data) => {
     rotate: data.rotate
   };
 
+  card.style.transition = "none";
   card.style.left = data.x + "px";
   card.style.top = data.y + "px";
   card.style.transform = `rotate(${data.rotate}deg)`;
