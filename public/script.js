@@ -221,7 +221,7 @@ async function loadMemories() {
       const dateStr = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
       card.innerHTML = `
         ${memory.image
-          ? `<img src="${BASE_URL}/images/${memory.image}?t=${Date.now()}" alt="${memory.title}" loading="lazy"/>`
+  ? `<img src="${memory.image}?t=${Date.now()}" alt="${memory.title}" loading="lazy"/>`
           : `<div style="width:100%;aspect-ratio:1/1;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:3rem;">♥</div>`
         }
         <div class="card-body">
@@ -338,7 +338,7 @@ function editMemory(memory) {
   document.getElementById("description").value = memory.description || "";
   if (memory.image) {
     const preview = document.getElementById("preview");
-    preview.src = `${BASE_URL}/images/${memory.image}?t=${Date.now()}`;
+    preview.src = `${memory.image}?t=${Date.now()}`;
     preview.style.display = "block";
   }
 }
