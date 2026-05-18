@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💌 Our Love Diary</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Ẩn hoàn toàn nút thêm/sửa/xoá */
+    .btn-add, .card-actions, #decoToggleBtn { display: none !important; }
+
+    /* Badge "chỉ xem" */
+    .view-badge {
+      position: fixed;
+      top: 16px; right: 16px;
+      background: var(--warm);
+      color: var(--wine);
+      font-family: 'Caveat', cursive;
+      font-size: 1rem;
+      padding: 6px 16px;
+      border-radius: 50px;
+      border: 1.5px solid var(--blush);
+      z-index: 9000;
+      pointer-events: none;
+    }
+
+    /* Tab toggle vẫn dùng được */
+  </style>
+</head>
+<body>
+
+  <div class="view-badge">👁 Chế độ xem</div>
+
+  <header>
+    <div class="header-hearts">♥ ♥ ♥</div>
+    <h1>Our Love Diary</h1>
+    <p>mỗi khoảnh khắc là mãi mãi ✦</p>
+    <div class="tab-toggle">
+      <button class="tab-btn active" id="tabPhotos" onclick="switchTab('photos')">📷 Kỷ niệm</button>
+      <button class="tab-btn" id="tabVideos" onclick="switchTab('videos')">🎬 Video</button>
+    </div>
+  </header>
+
+  <!-- Tab ảnh -->
+  <div id="pagePhotos">
+    <div id="memoryContainer">
+      <div class="loading">đang tải những kỷ niệm... ♥</div>
+    </div>
+  </div>
+
+  <!-- Tab video -->
+  <div id="pageVideos" style="display:none;">
+    <div id="videoContainer">
+      <div class="loading">đang tải video... ♥</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="decorations.js"></script>
+  <script>
+    const API_URL       = "http://localhost:3000/memories";
+    const VIDEO_API_URL = "http://localhost:3000/videos";
+
+    let positions      = {};
+    let videoPositions = {};
+    let dragState      = null;
+
+    // ── Tab ──────────────────────────────────────────────
+    function switchTab(tab) {
+      document.getElementById("pagePhotos").style.display = tab === "photos" ? "block" : "none";
+      document.getElementById("pageVideos").style.display = tab === "videos" ? "block" : "none";
+      document.getElementById("tabPhotos").classList.toggle("active", tab === "photos");
+      document.getElementById("tabVideos").classList.toggle("active", tab === "videos");
+      if (tab === "videos") loadVideos();
+    }
+
+    function randomRotate() {
+      return parseFloat((Math.random() * 10 - 5).toFixed(2));
+    }
+    function getInitialPos(item, index, cols) {
+      if (item.pos_x != null) return { x: item.pos_x, y: item.pos_y, rotate: item.pos_rotate };
+      return {
+        x:      20 + (index % cols) * 240 + (Math.random() * 20 - 10),
+        y:      20 + Math.floor(index / cols) * 340 + (Math.random() * 20 - 10),
+        rotate: randomRotate()
+      };
+    }
+
+    // ── Drag (chỉ xem — kéo được nhưng không lưu lên server) ──
+    document.addEventListener("mousemove", (e) => {
+      if (!dragState) return;
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      const store = dragState.isVideo ? videoPositions : positions;
+      store[dragState.id].x = dragState.origX + dx;
+      store[dragState.id].y = dragState.origY + dy;
+      dragState.card.style.left = store[dragState.id].x + "px";
+      dragState.card.style.top  = store[dragState.id].y + "px";
+    });
+    document.addEventListener("mouseup", () => {
+      if (!dragState) return;
+      const store = dragState.isVideo ? videoPositions : positions;
+      dragState.card.style.transform = `rotate(${store[dragState.id].rotate}deg)`;
+      dragState.card.classList.remove("dragging");
+      dragState = null;
+    });
+    document.addEventListener("touchmove", (e) => {
+      if (!dragState) return;
+      const t = e.touches[0];
+      const dx = t.clientX - dragState.startX;
+      const dy = t.clientY - dragState.startY;
+      const store = dragState.isVideo ? videoPositions : positions;
+      store[dragState.id].x = dragState.origX + dx;
+      store[dragState.id].y = dragState.origY + dy;
+      dragState.card.style.left = store[dragState.id].x + "px";
+      dragState.card.style.top  = store[dragState.id].y + "px";
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener("touchend", () => {
+      if (!dragState) return;
+      const store = dragState.isVideo ? videoPositions : positions;
+      dragState.card.style.transform = `rotate(${store[dragState.id].rotate}deg)`;
+      dragState.card.classList.remove("dragging");
+      dragState = null;
+    });
+
+    function makeDraggable(card, id, isVideo = false) {
+      card.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        document.querySelectorAll(".memory-card,.video-card").forEach(c => c.style.zIndex = 1);
+        card.style.zIndex = 100;
+        card.classList.add("dragging");
+        const store = isVideo ? videoPositions : positions;
+        dragState = { card, id, isVideo, startX: e.clientX, startY: e.clientY, origX: store[id].x, origY: store[id].y };
+      });
+      card.addEventListener("touchstart", (e) => {
+        const t = e.touches[0];
+        card.style.zIndex = 100;
+        card.classList.add("dragging");
+        const store = isVideo ? videoPositions : positions;
+        dragState = { card, id, isVideo, startX: t.clientX, startY: t.clientY, origX: store[id].x, origY: store[id].y };
+      }, { passive: true });
+    }
+
+    // ── Load ảnh ─────────────────────────────────────────
+    async function loadMemories() {
+      const container = document.getElementById("memoryContainer");
+      container.innerHTML = '<div class="loading">đang tải những kỷ niệm... ♥</div>';
+      try {
+        const memories = await fetch(API_URL).then(r => r.json());
+        container.innerHTML = "";
+        if (!memories.length) {
+          container.innerHTML = `<div class="empty-state"><span class="big-heart">💌</span><h2>Chưa có kỷ niệm nào</h2></div>`;
+          return;
+        }
+        const cols = Math.floor((window.innerWidth - 40) / 240) || 3;
+        container.style.minHeight = (Math.ceil(memories.length / cols) * 360 + 100) + "px";
+        memories.forEach((memory, index) => {
+          const card = document.createElement("div");
+          card.className = "memory-card";
+          const pos = getInitialPos(memory, index, cols);
+          positions[memory.id] = pos;
+          card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;`;
+          const d = new Date(memory.date);
+          const dateStr = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
+          card.innerHTML = `
+            ${memory.image
+              ? `<img src="http://localhost:3000/images/${memory.image}" loading="lazy"/>`
+              : `<div style="width:100%;aspect-ratio:1/1;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:3rem;">♥</div>`
+            }
+            <div class="card-body">
+              <div class="card-title">${memory.title}</div>
+              <div class="card-date">📅 ${dateStr}</div>
+              ${memory.description ? `<div class="card-desc">${memory.description}</div>` : ""}
+            </div>`;
+          container.appendChild(card);
+          makeDraggable(card, memory.id, false);
+        });
+      } catch {
+        document.getElementById("memoryContainer").innerHTML =
+          `<div class="empty-state"><span class="big-heart">😢</span><h2>Không thể kết nối server</h2></div>`;
+      }
+    }
+
+    // ── Load video ────────────────────────────────────────
+    async function loadVideos() {
+      const container = document.getElementById("videoContainer");
+      container.innerHTML = '<div class="loading">đang tải video... ♥</div>';
+      try {
+        const videos = await fetch(VIDEO_API_URL).then(r => r.json());
+        container.innerHTML = "";
+        if (!videos.length) {
+          container.innerHTML = `<div class="empty-state"><span class="big-heart">🎬</span><h2>Chưa có video nào</h2></div>`;
+          return;
+        }
+        const cols = Math.floor((window.innerWidth - 40) / 240) || 3;
+        container.style.minHeight = (Math.ceil(videos.length / cols) * 360 + 100) + "px";
+        videos.forEach((video, index) => {
+          const card = document.createElement("div");
+          card.className = "video-card";
+          const pos = getInitialPos(video, index, cols);
+          videoPositions[video.id] = pos;
+          card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;`;
+          const d = new Date(video.date);
+          const dateStr = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
+          const src = `http://localhost:3000/videos-file/${video.filename}`;
+          card.innerHTML = `
+            <div class="video-thumb">
+              <video src="${src}" muted preload="metadata"></video>
+              <div class="video-play-icon">▶️</div>
+            </div>
+            <div class="card-body">
+              <div class="card-title">${video.title}</div>
+              <div class="card-date">📅 ${dateStr}</div>
+              ${video.description ? `<div class="card-desc">${video.description}</div>` : ""}
+              <div class="card-actions">
+                <button class="play-btn" onclick='playVideo("${src}")'>▶ Xem</button>
+              </div>
+            </div>`;
+          container.appendChild(card);
+          makeDraggable(card, video.id, true);
+        });
+      } catch {
+        document.getElementById("videoContainer").innerHTML =
+          `<div class="empty-state"><span class="big-heart">😢</span><h2>Không thể kết nối</h2></div>`;
+      }
+    }
+
+    function playVideo(src) {
+      let overlay = document.getElementById("videoOverlay");
+      if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "videoOverlay";
+        overlay.innerHTML = `<video controls></video><button class="close-video" onclick="closeVideoPlayer()">✕ Đóng</button>`;
+        document.body.appendChild(overlay);
+      }
+      overlay.querySelector("video").src = src;
+      overlay.classList.add("open");
+      overlay.querySelector("video").play();
+    }
+    function closeVideoPlayer() {
+      const o = document.getElementById("videoOverlay");
+      if (o) { o.classList.remove("open"); o.querySelector("video").pause(); }
+    }
+
+    loadMemories();
+  </script>
+</body>
+</html>

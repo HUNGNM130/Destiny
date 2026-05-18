@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💌 Our Love Diary</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-hearts">♥ ♥ ♥</div>
+    <h1>Our Love Diary</h1>
+    <p>Mỗi khoảnh khắc là mãi mãi ✦</p>
+    <div class="tab-toggle">
+      <button class="tab-btn active" id="tabPhotos" onclick="switchTab('photos')">📷 Kỷ niệm</button>
+      <button class="tab-btn" id="tabVideos" onclick="switchTab('videos')">🎬 Video</button>
+    </div>
+  </header>
+
+  <!-- Tab ảnh -->
+  <div id="pagePhotos">
+    <button class="btn-add" onclick="openForm()">Thêm khoảnh khắc</button>
+    <div id="memoryContainer">
+      <div class="loading">đang tải những kỷ niệm... ♥</div>
+    </div>
+  </div>
+
+  <!-- Tab video -->
+  <div id="pageVideos" style="display:none;">
+    <button class="btn-add" onclick="openVideoForm()">Thêm video</button>
+    <div id="videoContainer">
+      <div class="loading">đang tải video... ♥</div>
+    </div>
+  </div>
+
+  <!-- Modal: Thêm/Sửa ảnh -->
+  <div id="memoryFormOverlay">
+    <div class="form-card">
+      <h2 id="formTitle">Thêm khoảnh khắc</h2>
+      <input type="hidden" id="memoryId" />
+      <div class="form-group">
+        <label>Tiêu đề ✦</label>
+        <input type="text" id="title" placeholder="Hôm nay chúng mình..." />
+      </div>
+      <div class="form-group">
+        <label>Ngày tháng ♥</label>
+        <input type="text" id="date" placeholder="dd/mm/yyyy" readonly />
+      </div>
+      <div class="form-group">
+        <label>Ghi chú ✍</label>
+        <textarea id="description" rows="3" placeholder="Viết gì đó thật dễ thương..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Hình ảnh 📷</label>
+        <div class="upload-area">
+          <input type="file" id="image" accept="image/*" onchange="onImageSelected(event)" />
+          <p>Nhấn để chọn ảnh ♥</p>
+        </div>
+        <div id="cropperWrapper" style="display:none; margin-top:12px;">
+          <div class="cropper-container-box">
+            <img id="cropperImg" />
+          </div>
+          <!-- Thanh xoay -->
+          <div class="rotate-row">
+            <span class="rotate-label">↺ Xoay</span>
+            <input type="range" id="rotateRange" min="0" max="360" value="0"
+                   oninput="onRotateRange(this.value)" />
+            <span class="rotate-deg" id="rotateDeg">0°</span>
+            <button type="button" class="btn-rotate-reset" onclick="resetRotate()">Reset</button>
+          </div>
+          <button type="button" class="btn-crop" onclick="doCrop()">✂️ Cắt ảnh này</button>
+        </div>
+        <img id="preview" src="" alt="preview" />
+      </div>
+      <div class="form-buttons">
+        <button class="btn-cancel" onclick="closeForm()">Huỷ</button>
+        <button class="btn-save" onclick="saveMemory()">Lưu lại ♥</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Thêm/Sửa video -->
+  <div id="videoFormOverlay">
+    <div class="form-card">
+      <h2 id="videoFormTitle">Thêm video</h2>
+      <input type="hidden" id="videoId" />
+      <div class="form-group">
+        <label>Tiêu đề ✦</label>
+        <input type="text" id="videoTitle" placeholder="Khoảnh khắc này..." />
+      </div>
+      <div class="form-group">
+        <label>Ngày tháng ♥</label>
+        <input type="text" id="videoDate" placeholder="dd/mm/yyyy" readonly />
+      </div>
+      <div class="form-group">
+        <label>Ghi chú ✍</label>
+        <textarea id="videoDescription" rows="3" placeholder="Viết gì đó thật dễ thương..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Video 🎬</label>
+        <div class="upload-area">
+          <input type="file" id="videoFile" accept="video/*" onchange="previewVideo(event)" />
+          <p>Nhấn để chọn video ♥</p>
+        </div>
+        <video id="videoPreview" controls style="display:none; width:100%; margin-top:10px; border-radius:6px;"></video>
+      </div>
+      <div class="form-buttons">
+        <button class="btn-cancel" onclick="closeVideoForm()">Huỷ</button>
+        <button class="btn-save" onclick="saveVideo()">Lưu lại ♥</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+  <script src="script.js"></script>
+  <script src="decorations.js"></script>
+</body>
+</html>
