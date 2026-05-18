@@ -1,4 +1,7 @@
 require("dotenv").config();
+console.log("HOST:", process.env.DB_HOST);
+console.log("USER:", process.env.DB_USER);
+console.log("PORT:", process.env.DB_PORT);
 const express = require("express");
 const mysql = require("mysql2");
 const multer = require("multer");
