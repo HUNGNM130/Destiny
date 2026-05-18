@@ -1,18 +1,45 @@
+require("dotenv").config();
 const express = require("express");
-const mysql   = require("mysql2");
-const multer  = require("multer");
-const cors    = require("cors");
-const path    = require("path");
-const fs      = require("fs");
+const mysql = require("mysql2");
+const multer = require("multer");
+const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
-app.use("/images",      express.static(path.join(__dirname, "uploads")));
-app.use("/videos-file", express.static(path.join(__dirname, "uploads-video")));
 
-// ─── MySQL ──────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// PORT
+// ─────────────────────────────────────────────
+const PORT = process.env.PORT || 3000;
+
+// ─────────────────────────────────────────────
+// CORS
+// ─────────────────────────────────────────────
+app.use(cors({
+  origin: "*"
+}));
+
+app.use(express.json());
+
+// ─────────────────────────────────────────────
+// STATIC
+// ─────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use(
+  "/images",
+  express.static(path.join(__dirname, "uploads"))
+);
+
+app.use(
+  "/videos-file",
+  express.static(path.join(__dirname, "uploads-video"))
+);
+
+// ─────────────────────────────────────────────
+// MYSQL
+// ─────────────────────────────────────────────
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -22,206 +49,527 @@ const db = mysql.createConnection({
 });
 
 db.connect((err) => {
-  if (err) { console.error("❌ Lỗi kết nối MySQL:", err.message); process.exit(1); }
+  if (err) {
+  console.error("❌ Lỗi kết nối MySQL:", err.message);
+  return;
+}
+
   console.log("✅ Đã kết nối MySQL!");
 
-  // Bảng memories
+  // TABLE memories
   db.query(`
     CREATE TABLE IF NOT EXISTS memories (
-      id          INT AUTO_INCREMENT PRIMARY KEY,
-      title       VARCHAR(255) NOT NULL,
-      date        DATE NOT NULL,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      date DATE NOT NULL,
       description TEXT,
-      image       VARCHAR(255),
-      pos_x       FLOAT DEFAULT NULL,
-      pos_y       FLOAT DEFAULT NULL,
-      pos_rotate  FLOAT DEFAULT NULL,
-      created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      image VARCHAR(255),
+      pos_x FLOAT DEFAULT NULL,
+      pos_y FLOAT DEFAULT NULL,
+      pos_rotate FLOAT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { if (err) console.error("❌", err.message); else console.log("✅ Bảng memories OK"); });
+  `);
 
-  // Bảng videos
+  // TABLE videos
   db.query(`
     CREATE TABLE IF NOT EXISTS videos (
-      id          INT AUTO_INCREMENT PRIMARY KEY,
-      title       VARCHAR(255) NOT NULL,
-      date        DATE NOT NULL,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      date DATE NOT NULL,
       description TEXT,
-      filename    VARCHAR(255),
-      pos_x       FLOAT DEFAULT NULL,
-      pos_y       FLOAT DEFAULT NULL,
-      pos_rotate  FLOAT DEFAULT NULL,
-      created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      filename VARCHAR(255),
+      pos_x FLOAT DEFAULT NULL,
+      pos_y FLOAT DEFAULT NULL,
+      pos_rotate FLOAT DEFAULT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-  `, (err) => { if (err) console.error("❌", err.message); else console.log("✅ Bảng videos OK"); });
+  `);
 
-  // Thêm cột pos cho bảng cũ nếu chưa có
-  [
-    "ALTER TABLE memories ADD COLUMN IF NOT EXISTS pos_x      FLOAT DEFAULT NULL",
-    "ALTER TABLE memories ADD COLUMN IF NOT EXISTS pos_y      FLOAT DEFAULT NULL",
-    "ALTER TABLE memories ADD COLUMN IF NOT EXISTS pos_rotate FLOAT DEFAULT NULL",
-  ].forEach(sql => db.query(sql, () => {}));
+  console.log("✅ Tables ready");
 });
 
-// ─── Multer: ảnh ───────────────────────────────────────
-if (!fs.existsSync("uploads"))       fs.mkdirSync("uploads");
-if (!fs.existsSync("uploads-video")) fs.mkdirSync("uploads-video");
+// ─────────────────────────────────────────────
+// CREATE UPLOAD FOLDERS
+// ─────────────────────────────────────────────
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads");
+}
 
+if (!fs.existsSync("uploads-video")) {
+  fs.mkdirSync("uploads-video");
+}
+
+// ─────────────────────────────────────────────
+// MULTER
+// ─────────────────────────────────────────────
 const imageStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename:    (req, file, cb) => cb(null, Date.now() + "-" + Math.round(Math.random()*1e9) + path.extname(file.originalname))
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+
+  filename: (req, file, cb) => {
+    cb(
+      null,
+      Date.now() +
+      "-" +
+      Math.round(Math.random() * 1e9) +
+      path.extname(file.originalname)
+    );
+  }
 });
+
 const videoStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads-video/"),
-  filename:    (req, file, cb) => cb(null, Date.now() + "-" + Math.round(Math.random()*1e9) + path.extname(file.originalname))
-});
+  destination: (req, file, cb) => {
+    cb(null, "uploads-video/");
+  },
 
-const uploadImage = multer({ storage: imageStorage });
-const uploadVideo = multer({ storage: videoStorage });
-
-// ─── MEMORIES routes ────────────────────────────────────
-
-app.get("/memories", (req, res) => {
-  db.query("SELECT * FROM memories ORDER BY date DESC", (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
-});
-
-app.post("/memories", uploadImage.single("image"), (req, res) => {
-  const { title, date, description } = req.body;
-  const image = req.file ? req.file.filename : null;
-  db.query(
-    "INSERT INTO memories (title, date, description, image) VALUES (?,?,?,?)",
-    [title, date, description, image],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: result.insertId, title, date, description, image });
-    }
-  );
-});
-
-app.put("/memories/:id", uploadImage.single("image"), (req, res) => {
-  const { title, date, description } = req.body;
-  const { id } = req.params;
-  if (req.file) {
-    db.query("SELECT image FROM memories WHERE id=?", [id], (err, rows) => {
-      if (!err && rows[0]?.image) {
-        const old = path.join(__dirname, "uploads", rows[0].image);
-        if (fs.existsSync(old)) fs.unlinkSync(old);
-      }
-    });
-    db.query(
-      "UPDATE memories SET title=?,date=?,description=?,image=? WHERE id=?",
-      [title, date, description, req.file.filename, id],
-      (err) => { if (err) return res.status(500).json({ error: err.message }); res.json({ success: true }); }
-    );
-  } else {
-    db.query(
-      "UPDATE memories SET title=?,date=?,description=? WHERE id=?",
-      [title, date, description, id],
-      (err) => { if (err) return res.status(500).json({ error: err.message }); res.json({ success: true }); }
+  filename: (req, file, cb) => {
+    cb(
+      null,
+      Date.now() +
+      "-" +
+      Math.round(Math.random() * 1e9) +
+      path.extname(file.originalname)
     );
   }
 });
 
-app.delete("/memories/:id", (req, res) => {
-  const { id } = req.params;
-  db.query("SELECT image FROM memories WHERE id=?", [id], (err, rows) => {
-    if (!err && rows[0]?.image) {
-      const p = path.join(__dirname, "uploads", rows[0].image);
-      if (fs.existsSync(p)) fs.unlinkSync(p);
-    }
-    db.query("DELETE FROM memories WHERE id=?", [id], (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true });
-    });
+const uploadImage = multer({
+  storage: imageStorage
+});
+
+const uploadVideo = multer({
+  storage: videoStorage
+});
+
+// ─────────────────────────────────────────────
+// TEST ROUTE
+// ─────────────────────────────────────────────
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "Love Diary API running"
   });
 });
 
-app.patch("/memories/:id/position", (req, res) => {
-  const { x, y, rotate } = req.body;
-  db.query(
-    "UPDATE memories SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
-    [x, y, rotate, req.params.id],
-    (err) => { if (err) return res.status(500).json({ error: err.message }); res.json({ ok: true }); }
-  );
-});
-
-// ─── VIDEOS routes ──────────────────────────────────────
-
-app.get("/videos", (req, res) => {
-  db.query("SELECT * FROM videos ORDER BY date DESC", (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
-});
-
-app.post("/videos", uploadVideo.single("video"), (req, res) => {
-  const { title, date, description } = req.body;
-  const filename = req.file ? req.file.filename : null;
-  if (!filename) return res.status(400).json({ error: "Chưa có file video" });
-  db.query(
-    "INSERT INTO videos (title, date, description, filename) VALUES (?,?,?,?)",
-    [title, date, description, filename],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: result.insertId, title, date, description, filename });
-    }
-  );
-});
-
-app.put("/videos/:id", uploadVideo.single("video"), (req, res) => {
-  const { title, date, description } = req.body;
-  const { id } = req.params;
-  if (req.file) {
-    db.query("SELECT filename FROM videos WHERE id=?", [id], (err, rows) => {
-      if (!err && rows[0]?.filename) {
-        const old = path.join(__dirname, "uploads-video", rows[0].filename);
-        if (fs.existsSync(old)) fs.unlinkSync(old);
-      }
-    });
-    db.query(
-      "UPDATE videos SET title=?,date=?,description=?,filename=? WHERE id=?",
-      [title, date, description, req.file.filename, id],
-      (err) => { if (err) return res.status(500).json({ error: err.message }); res.json({ success: true }); }
-    );
-  } else {
-    db.query(
-      "UPDATE videos SET title=?,date=?,description=? WHERE id=?",
-      [title, date, description, id],
-      (err) => { if (err) return res.status(500).json({ error: err.message }); res.json({ success: true }); }
-    );
-  }
-});
-
-app.delete("/videos/:id", (req, res) => {
-  const { id } = req.params;
-  db.query("SELECT filename FROM videos WHERE id=?", [id], (err, rows) => {
-    if (!err && rows[0]?.filename) {
-      const p = path.join(__dirname, "uploads-video", rows[0].filename);
-      if (fs.existsSync(p)) fs.unlinkSync(p);
-    }
-    db.query("DELETE FROM videos WHERE id=?", [id], (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true });
-    });
-  });
-});
-
-app.patch("/videos/:id/position", (req, res) => {
-  const { x, y, rotate } = req.body;
-  db.query(
-    "UPDATE videos SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
-    [x, y, rotate, req.params.id],
-    (err) => { if (err) return res.status(500).json({ error: err.message }); res.json({ ok: true }); }
-  );
-});
-
-// ─── Start ──────────────────────────────────────────────
-// Route xem công khai — ai có link /view đều vào được
+// ─────────────────────────────────────────────
+// VIEW PAGE
+// ─────────────────────────────────────────────
 app.get("/view", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "view.html"));
 });
 
-app.listen(3000, () => console.log("🚀 Server chạy tại http://localhost:3000"));
+// ─────────────────────────────────────────────
+// MEMORIES ROUTES
+// ─────────────────────────────────────────────
+
+// GET memories
+app.get("/memories", (req, res) => {
+  db.query(
+    "SELECT * FROM memories ORDER BY date DESC",
+    (err, rows) => {
+
+      if (err) {
+        return res.status(500).json({
+          error: err.message
+        });
+      }
+
+      res.json(rows);
+    }
+  );
+});
+
+// CREATE memory
+app.post(
+  "/memories",
+  uploadImage.single("image"),
+  (req, res) => {
+
+    const { title, date, description } = req.body;
+
+    const image = req.file
+      ? req.file.filename
+      : null;
+
+    db.query(
+      "INSERT INTO memories (title,date,description,image) VALUES (?,?,?,?)",
+      [title, date, description, image],
+      (err, result) => {
+
+        if (err) {
+          return res.status(500).json({
+            error: err.message
+          });
+        }
+
+        res.json({
+          success: true,
+          id: result.insertId
+        });
+      }
+    );
+  }
+);
+
+// UPDATE memory
+app.put(
+  "/memories/:id",
+  uploadImage.single("image"),
+  (req, res) => {
+
+    const { title, date, description } = req.body;
+    const { id } = req.params;
+
+    if (req.file) {
+
+      db.query(
+        "SELECT image FROM memories WHERE id=?",
+        [id],
+        (err, rows) => {
+
+          if (!err && rows[0]?.image) {
+
+            const oldFile = path.join(
+              __dirname,
+              "uploads",
+              rows[0].image
+            );
+
+            if (fs.existsSync(oldFile)) {
+              fs.unlinkSync(oldFile);
+            }
+          }
+        }
+      );
+
+      db.query(
+        "UPDATE memories SET title=?,date=?,description=?,image=? WHERE id=?",
+        [
+          title,
+          date,
+          description,
+          req.file.filename,
+          id
+        ],
+        (err) => {
+
+          if (err) {
+            return res.status(500).json({
+              error: err.message
+            });
+          }
+
+          res.json({
+            success: true
+          });
+        }
+      );
+
+    } else {
+
+      db.query(
+        "UPDATE memories SET title=?,date=?,description=? WHERE id=?",
+        [
+          title,
+          date,
+          description,
+          id
+        ],
+        (err) => {
+
+          if (err) {
+            return res.status(500).json({
+              error: err.message
+            });
+          }
+
+          res.json({
+            success: true
+          });
+        }
+      );
+    }
+  }
+);
+
+// DELETE memory
+app.delete("/memories/:id", (req, res) => {
+
+  const { id } = req.params;
+
+  db.query(
+    "SELECT image FROM memories WHERE id=?",
+    [id],
+    (err, rows) => {
+
+      if (!err && rows[0]?.image) {
+
+        const filePath = path.join(
+          __dirname,
+          "uploads",
+          rows[0].image
+        );
+
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      db.query(
+        "DELETE FROM memories WHERE id=?",
+        [id],
+        (err) => {
+
+          if (err) {
+            return res.status(500).json({
+              error: err.message
+            });
+          }
+
+          res.json({
+            success: true
+          });
+        }
+      );
+    }
+  );
+});
+
+// UPDATE memory position
+app.patch("/memories/:id/position", (req, res) => {
+
+  const { x, y, rotate } = req.body;
+
+  db.query(
+    "UPDATE memories SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
+    [x, y, rotate, req.params.id],
+    (err) => {
+
+      if (err) {
+        return res.status(500).json({
+          error: err.message
+        });
+      }
+
+      res.json({
+        success: true
+      });
+    }
+  );
+});
+
+// ─────────────────────────────────────────────
+// VIDEOS ROUTES
+// ─────────────────────────────────────────────
+
+// GET videos
+app.get("/videos", (req, res) => {
+
+  db.query(
+    "SELECT * FROM videos ORDER BY date DESC",
+    (err, rows) => {
+
+      if (err) {
+        return res.status(500).json({
+          error: err.message
+        });
+      }
+
+      res.json(rows);
+    }
+  );
+});
+
+// CREATE video
+app.post(
+  "/videos",
+  uploadVideo.single("video"),
+  (req, res) => {
+
+    const { title, date, description } = req.body;
+
+    const filename = req.file
+      ? req.file.filename
+      : null;
+
+    if (!filename) {
+      return res.status(400).json({
+        error: "Chưa có file video"
+      });
+    }
+
+    db.query(
+      "INSERT INTO videos (title,date,description,filename) VALUES (?,?,?,?)",
+      [title, date, description, filename],
+      (err, result) => {
+
+        if (err) {
+          return res.status(500).json({
+            error: err.message
+          });
+        }
+
+        res.json({
+          success: true,
+          id: result.insertId
+        });
+      }
+    );
+  }
+);
+
+// UPDATE video
+app.put(
+  "/videos/:id",
+  uploadVideo.single("video"),
+  (req, res) => {
+
+    const { title, date, description } = req.body;
+    const { id } = req.params;
+
+    if (req.file) {
+
+      db.query(
+        "SELECT filename FROM videos WHERE id=?",
+        [id],
+        (err, rows) => {
+
+          if (!err && rows[0]?.filename) {
+
+            const oldFile = path.join(
+              __dirname,
+              "uploads-video",
+              rows[0].filename
+            );
+
+            if (fs.existsSync(oldFile)) {
+              fs.unlinkSync(oldFile);
+            }
+          }
+        }
+      );
+
+      db.query(
+        "UPDATE videos SET title=?,date=?,description=?,filename=? WHERE id=?",
+        [
+          title,
+          date,
+          description,
+          req.file.filename,
+          id
+        ],
+        (err) => {
+
+          if (err) {
+            return res.status(500).json({
+              error: err.message
+            });
+          }
+
+          res.json({
+            success: true
+          });
+        }
+      );
+
+    } else {
+
+      db.query(
+        "UPDATE videos SET title=?,date=?,description=? WHERE id=?",
+        [
+          title,
+          date,
+          description,
+          id
+        ],
+        (err) => {
+
+          if (err) {
+            return res.status(500).json({
+              error: err.message
+            });
+          }
+
+          res.json({
+            success: true
+          });
+        }
+      );
+    }
+  }
+);
+
+// DELETE video
+app.delete("/videos/:id", (req, res) => {
+
+  const { id } = req.params;
+
+  db.query(
+    "SELECT filename FROM videos WHERE id=?",
+    [id],
+    (err, rows) => {
+
+      if (!err && rows[0]?.filename) {
+
+        const filePath = path.join(
+          __dirname,
+          "uploads-video",
+          rows[0].filename
+        );
+
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      db.query(
+        "DELETE FROM videos WHERE id=?",
+        [id],
+        (err) => {
+
+          if (err) {
+            return res.status(500).json({
+              error: err.message
+            });
+          }
+
+          res.json({
+            success: true
+          });
+        }
+      );
+    }
+  );
+});
+
+// UPDATE video position
+app.patch("/videos/:id/position", (req, res) => {
+
+  const { x, y, rotate } = req.body;
+
+  db.query(
+    "UPDATE videos SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
+    [x, y, rotate, req.params.id],
+    (err) => {
+
+      if (err) {
+        return res.status(500).json({
+          error: err.message
+        });
+      }
+
+      res.json({
+        success: true
+      });
+    }
+  );
+});
+
+// ─────────────────────────────────────────────
+// START SERVER
+// ─────────────────────────────────────────────
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
