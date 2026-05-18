@@ -48,10 +48,16 @@ function savePosition(id, isVideo = false) {
   const url = isVideo ? `${VIDEO_API_URL}/${id}/position` : `${API_URL}/${id}/position`;
   if (!p) return;
   fetch(url, {
-    method:  "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ x: p.x, y: p.y, rotate: p.rotate })
-  });
+  method: "PATCH",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    x,
+    y,
+    rotate
+  })
+});
 }
 
 // ── Drag & Drop ────────────────────────────────────────
