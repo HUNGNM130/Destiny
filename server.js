@@ -238,7 +238,6 @@ app.post(
     );
   }
 );
-
 // UPDATE memory
 app.put(
   "/memories/:id",
@@ -433,7 +432,6 @@ if (!filename) {
     );
   }
 );
-
 // UPDATE video
 app.put(
   "/videos/:id",

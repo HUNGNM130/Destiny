@@ -71,14 +71,14 @@ async function savePosition(id, isVideo = false) {
     await fetch(
       `${isVideo ? VIDEO_API_URL : API_URL}/${id}/position`,
       {
-        method: "PUT",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          pos_x: p.x,
-          pos_y: p.y,
-          pos_rotate: p.rotate
+          x: p.x,
+          y: p.y,
+          rotate: p.rotate
         })
       }
     );
