@@ -18,7 +18,11 @@ const { Server } = require("socket.io");
 const app    = express();
 const server = http.createServer(app);
 const PORT   = process.env.PORT || 3000;
+const ytdl = require("ytdl-core");
+const ffmpeg = require("fluent-ffmpeg");
+const ffmpegPath = require("ffmpeg-static");
 
+ffmpeg.setFfmpegPath(ffmpegPath);
 // ─────────────────────────────────────────────
 // SOCKET.IO
 // ─────────────────────────────────────────────
@@ -356,8 +360,6 @@ app.post("/memories/:id/react", (req, res) => {
           error: "Not found"
         });
       }
-
-<<<<<<< HEAD
       let reactions = {};
 
       try {
@@ -392,14 +394,12 @@ app.post("/memories/:id/react", (req, res) => {
           });
         }
       );
-=======
       io.emit("memoryMoved", {
         id: req.params.id,
         x,
         y,
         rotate
       });
->>>>>>> 857eae689a21b99b8a527eb9b3b9fcdfb500023c
     }
   );
 });
@@ -526,6 +526,7 @@ app.get("/musics", (req, res) => {
 
 
 // UPLOAD MUSIC
+
 app.post(
   "/musics",
   uploadMusic.single("music"),
@@ -602,6 +603,86 @@ app.delete("/musics/:id", (req, res) => {
       );
     }
   );
+});
+app.post("/youtube-music", async (req, res) => {
+
+  try {
+
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        error: "Missing URL"
+      });
+    }
+
+    if (!ytdl.validateURL(url)) {
+      return res.status(400).json({
+        error: "Invalid URL"
+      });
+    }
+
+    const info =
+      await ytdl.getInfo(url);
+
+    const title =
+      info.videoDetails.title;
+
+    const filename =
+      Date.now() + ".mp3";
+
+    const outputPath = path.join(
+      __dirname,
+      "uploads-music",
+      filename
+    );
+
+    const stream = ytdl(url, {
+      filter: "audioonly",
+      quality: "highestaudio"
+    });
+
+    ffmpeg(stream)
+      .audioBitrate(128)
+      .save(outputPath)
+
+      .on("end", () => {
+
+        db.query(
+          "INSERT INTO musics (title, filename) VALUES (?, ?)",
+          [title, filename],
+          (err, result) => {
+
+            if (err) {
+              return res.status(500).json({
+                error: err.message
+              });
+            }
+
+            res.json({
+              success: true
+            });
+          }
+        );
+      })
+
+      .on("error", (err) => {
+
+        console.error(err);
+
+        res.status(500).json({
+          error: "Convert failed"
+        });
+      });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: err.message
+    });
+  }
 });
 // ─────────────────────────────────────────────
 // START
