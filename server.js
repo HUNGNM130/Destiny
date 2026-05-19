@@ -238,16 +238,6 @@ app.post(
     );
   }
 );
-app.put("/memories/:id/position", async (req, res) => {
-  const { pos_x, pos_y, pos_rotate } = req.body;
-
-  await db.query(
-    "UPDATE memories SET pos_x=?, pos_y=?, pos_rotate=? WHERE id=?",
-    [pos_x, pos_y, pos_rotate, req.params.id]
-  );
-
-  res.json({ success: true });
-});
 // UPDATE memory
 app.put(
   "/memories/:id",
@@ -442,16 +432,6 @@ if (!filename) {
     );
   }
 );
-app.put("/videos/:id/position", async (req, res) => {
-  const { pos_x, pos_y, pos_rotate } = req.body;
-
-  await db.query(
-    "UPDATE videos SET pos_x=?, pos_y=?, pos_rotate=? WHERE id=?",
-    [pos_x, pos_y, pos_rotate, req.params.id]
-  );
-
-  res.json({ success: true });
-});
 // UPDATE video
 app.put(
   "/videos/:id",
