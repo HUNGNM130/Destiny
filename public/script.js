@@ -498,7 +498,6 @@ function emitMove(id, isVideo = false) {
       rotate: p.rotate
     }
   );
-}
 
 // ══════════════════════════════════════════════════════
 //  10. IMPROVED MOBILE DRAG (pointer events)
