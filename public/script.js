@@ -1,4 +1,7 @@
-const BASE_URL = "https://destiny-s88d.onrender.com";
+const BASE_URL =
+  window.location.origin.includes("localhost")
+    ? "http://localhost:3000"
+    : window.location.origin;
 const API_URL       = `${BASE_URL}/memories`;
 const VIDEO_API_URL = `${BASE_URL}/videos`;
 const socket = io(BASE_URL);
@@ -200,11 +203,21 @@ function renderMemoriesPage() {
     card.style.transform = `rotate(${pos.rotate}deg)`;
     card.style.zIndex    = 1;
 
-    const d       = new Date(memory.date);
+    const d = new Date(memory.date + "T00:00:00");
     const dateStr = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
-    const imgSrc  = memory.image ? `${memory.image}?t=${Date.now()}` : null;
+    const imgSrc =
+  memory.image &&
+  memory.image.startsWith("http")
+    ? `${memory.image}?t=${Date.now()}`
+    : null;
 
-    const reactions = memory.reactions ? JSON.parse(memory.reactions) : { "💕":0, "😍":0, "🥹":0 };
+    let reactions = { "💕":0, "😍":0, "🥹":0 };
+
+try {
+  if (memory.reactions) {
+    reactions = JSON.parse(memory.reactions);
+  }
+} catch {}
 
     card.innerHTML = `
       ${imgSrc
