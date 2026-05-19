@@ -88,8 +88,6 @@ async function savePosition(id, isVideo = false) {
 }
 // ── Drag & Drop ────────────────────────────────────────
 let dragState = null;
-
-let dragState = null;
 let moveRAF = null;
 
 function updateCardPosition(card, x, y, rotate) {
