@@ -47,51 +47,172 @@ function updateCounter() {
 updateCounter();
 setInterval(updateCounter, 1000);
 
-// ══════════════════════════════════════════════════════
-//  2. MUSIC PLAYER
-// ══════════════════════════════════════════════════════
-let audio       = new Audio();
-let musicLoaded = false;
-let musicPlaying = false;
+// ═════════════════════════════════════
+// MUSIC PLAYER
+// ═════════════════════════════════════
 
-document.getElementById("musicToggleBtn").addEventListener("click", () => {
-  if (!musicLoaded) {
-    document.getElementById("musicPanel").classList.toggle("open");
-    return;
-  }
-  toggleMusic();
+var audio = new Audio();
+
+var musicLoaded = false;
+var musicPlaying = false;
+
+const musicPanel =
+  document.getElementById("musicPanel");
+
+const musicBtn =
+  document.getElementById("musicToggleBtn");
+
+const musicSelect =
+  document.getElementById("musicSelect");
+
+const MUSIC_API_URL =
+  `${BASE_URL}/musics`;
+
+
+// ── mở panel ─────────────────────────
+musicBtn.addEventListener("click", (e) => {
+
+  e.stopPropagation();
+
+  musicPanel.classList.toggle("open");
 });
 
-function loadMusic(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  audio.src = URL.createObjectURL(file);
-  audio.loop = true;
-  musicLoaded = true;
-  document.getElementById("musicTrackName").textContent = file.name;
-  document.getElementById("musicPanel").classList.remove("open");
-  audio.play();
-  musicPlaying = true;
-  document.getElementById("musicToggleBtn").classList.add("playing");
-  document.getElementById("musicToggleBtn").textContent = "⏸";
+
+// ── click ngoài để đóng ──────────────
+document.addEventListener("click", (e) => {
+
+  if (
+    musicPanel.classList.contains("open") &&
+    !musicPanel.contains(e.target) &&
+    e.target !== musicBtn
+  ) {
+
+    musicPanel.classList.remove("open");
+  }
+});
+
+
+// ── load list nhạc ───────────────────
+async function loadMusicList() {
+
+  try {
+
+    const res =
+      await fetch(MUSIC_API_URL);
+
+    const musics =
+      await res.json();
+
+    musicSelect.innerHTML =
+      `<option value="">-- Chọn nhạc --</option>`;
+
+    musics.forEach(music => {
+
+      const option =
+        document.createElement("option");
+
+      option.value =
+        `${BASE_URL}/music-file/${music.filename}`;
+
+      option.textContent =
+        music.title || music.filename;
+
+      musicSelect.appendChild(option);
+    });
+
+  } catch (err) {
+
+    console.error(err);
+  }
 }
 
+
+// ── chọn nhạc ────────────────────────
+musicSelect.addEventListener(
+  "change",
+  async function () {
+
+    if (!this.value) return;
+
+    try {
+
+      audio.src = this.value;
+
+      audio.loop = true;
+
+      await audio.play();
+
+      musicLoaded = true;
+      musicPlaying = true;
+
+      musicBtn.textContent = "⏸";
+
+      document
+        .getElementById("musicTrackName")
+        .textContent =
+          this.options[this.selectedIndex].text;
+
+    } catch (err) {
+
+      console.error(err);
+    }
+});
+
+
+// ── play pause ───────────────────────
 function toggleMusic() {
+
   if (!musicLoaded) {
-    document.getElementById("musicPanel").classList.toggle("open");
+
+    musicPanel.classList.add("open");
+
     return;
   }
+
   if (musicPlaying) {
+
     audio.pause();
+
     musicPlaying = false;
-    document.getElementById("musicToggleBtn").classList.remove("playing");
-    document.getElementById("musicToggleBtn").textContent = "🎵";
+
+    musicBtn.textContent = "🎵";
+
   } else {
+
     audio.play();
+
     musicPlaying = true;
-    document.getElementById("musicToggleBtn").classList.add("playing");
-    document.getElementById("musicToggleBtn").textContent = "⏸";
+
+    musicBtn.textContent = "⏸";
   }
+}
+
+
+// ── upload file local ────────────────
+function loadMusic(event) {
+
+  const file =
+    event.target.files[0];
+
+  if (!file) return;
+
+  const url =
+    URL.createObjectURL(file);
+
+  audio.src = url;
+
+  audio.loop = true;
+
+  audio.play();
+
+  musicLoaded = true;
+  musicPlaying = true;
+
+  musicBtn.textContent = "⏸";
+
+  document
+    .getElementById("musicTrackName")
+    .textContent = file.name;
 }
 
 // ══════════════════════════════════════════════════════
@@ -499,18 +620,15 @@ function emitMove(id, isVideo = false) {
   socket.emit(isVideo ? "moveVideo" : "moveMemory", { id, x: p.x, y: p.y, rotate: p.rotate });
 }
 
-async function savePosition(id, isVideo = false) {
-  const p = isVideo ? videoPositions[id] : positions[id];
-  if (!p) return;
-  const url = isVideo ? `${VIDEO_API_URL}/${id}/position` : `${API_URL}/${id}/position`;
-  try {
-    await fetch(url, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ x: p.x, y: p.y, rotate: p.rotate })
-    });
-  } catch { /* ignore */ }
-}
+  socket.emit(
+    isVideo ? "moveVideo" : "moveMemory",
+    {
+      id,
+      x: p.x,
+      y: p.y,
+      rotate: p.rotate
+    }
+  );
 
 // ══════════════════════════════════════════════════════
 //  10. IMPROVED MOBILE DRAG (pointer events)
@@ -894,7 +1012,6 @@ document.getElementById("memoryFormOverlay").addEventListener("click", function(
 document.getElementById("videoFormOverlay").addEventListener("click", function(e) {
   if (e.target === this) closeVideoForm();
 });
-
 // Music panel: click ngoài để đóng
 document.addEventListener("click", (e) => {
   const panel = document.getElementById("musicPanel");
@@ -957,7 +1074,115 @@ document
       .getElementById("musicToggleBtn")
       .textContent = "⏸";
 });
+// ═════════════════════════════════════
+// MUSIC PLAYER
+// ═════════════════════════════════════
 
+var audio = new Audio();
+
+const MUSIC_API_URL =
+  `${BASE_URL}/musics`;
+
+async function loadMusicList() {
+
+  try {
+
+    const res =
+      await fetch(MUSIC_API_URL);
+
+    const musics =
+      await res.json();
+
+    const select =
+      document.getElementById("musicSelect");
+
+    if (!select) return;
+
+    select.innerHTML =
+      `<option value="">-- Chọn nhạc --</option>`;
+
+    musics.forEach(music => {
+
+      const option =
+        document.createElement("option");
+
+      option.value =
+        `${BASE_URL}/music-file/${music.filename}`;
+
+      option.textContent =
+        music.title;
+
+      select.appendChild(option);
+    });
+
+  } catch (err) {
+
+    console.error(err);
+  }
+}
+
+
+document
+  .getElementById("musicSelect")
+  ?.addEventListener("change", async function () {
+
+    if (!this.value) return;
+
+    try {
+
+      audio.src = this.value;
+
+      audio.loop = true;
+
+      await audio.play();
+
+    } catch (err) {
+
+      console.error(err);
+    }
+});
+
+
+async function addYoutubeMusic() {
+
+  const url =
+    document.getElementById("youtubeUrl").value;
+
+  if (!url) return;
+
+  try {
+
+    const res = await fetch(
+      `${BASE_URL}/youtube-music`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({ url })
+      }
+    );
+
+    const data = await res.json();
+
+    if (!data.success) {
+
+      alert("Lỗi thêm nhạc");
+
+      return;
+    }
+
+    alert("Đã thêm nhạc!");
+
+    loadMusicList();
+
+  } catch (err) {
+
+    console.error(err);
+  }
+}
 // ── Start ─────────────────────────────────────────────────
 loadMusicList();
 loadMemories();
