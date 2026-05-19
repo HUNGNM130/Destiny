@@ -52,21 +52,22 @@ io.on("connection", (socket) => {
   console.log("🟢 User connected");
 
   socket.on("moveMemory", (data) => {
-
     socket.broadcast.emit("memoryMoved", data);
   });
 
   socket.on("moveVideo", (data) => {
-
     socket.broadcast.emit("videoMoved", data);
   });
 
   socket.on("disconnect", () => {
-
     console.log("🔴 User disconnected");
   });
 
 });
+
+// ─────────────────────────────────────────────
+// CLOUDINARY
+// ─────────────────────────────────────────────
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key:    process.env.CLOUDINARY_API_KEY,
@@ -323,10 +324,7 @@ app.delete("/memories/:id", (req, res) => {
   });
 });
 
-// UPDATE memory position
-// UPDATE memory position
 app.patch("/memories/:id/position", (req, res) => {
-
   const { x, y, rotate } = req.body;
   db.query(
     "UPDATE memories SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
@@ -357,7 +355,6 @@ app.post("/memories/:id/react", (req, res) => {
         });
       }
 
-<<<<<<< HEAD
       let reactions = {};
 
       try {
@@ -392,14 +389,6 @@ app.post("/memories/:id/react", (req, res) => {
           });
         }
       );
-=======
-      io.emit("memoryMoved", {
-        id: req.params.id,
-        x,
-        y,
-        rotate
-      });
->>>>>>> 857eae689a21b99b8a527eb9b3b9fcdfb500023c
     }
   );
 });
@@ -474,31 +463,15 @@ app.delete("/videos/:id", (req, res) => {
   });
 });
 
-// UPDATE video position
-// UPDATE video position
 app.patch("/videos/:id/position", (req, res) => {
   const { x, y, rotate } = req.body;
   db.query(
     "UPDATE videos SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
     [x, y, rotate, req.params.id],
     (err) => {
-
-      if (err) {
-        return res.status(500).json({
-          error: err.message
-        });
-      }
-
-      res.json({
-        success: true
-      });
-
-      io.emit("videoMoved", {
-        id: req.params.id,
-        x,
-        y,
-        rotate
-      });
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+      io.emit("videoMoved", { id: req.params.id, x, y, rotate });
     }
   );
 });

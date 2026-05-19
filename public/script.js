@@ -494,24 +494,22 @@ function getInitialPos(item, index, cols) {
 }
 
 function emitMove(id, isVideo = false) {
-
-  const p = isVideo
-    ? videoPositions[id]
-    : positions[id];
-
+  const p = isVideo ? videoPositions[id] : positions[id];
   if (!p) return;
   socket.emit(isVideo ? "moveVideo" : "moveMemory", { id, x: p.x, y: p.y, rotate: p.rotate });
 }
 
-  socket.emit(
-    isVideo ? "moveVideo" : "moveMemory",
-    {
-      id,
-      x: p.x,
-      y: p.y,
-      rotate: p.rotate
-    }
-  );
+async function savePosition(id, isVideo = false) {
+  const p = isVideo ? videoPositions[id] : positions[id];
+  if (!p) return;
+  const url = isVideo ? `${VIDEO_API_URL}/${id}/position` : `${API_URL}/${id}/position`;
+  try {
+    await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ x: p.x, y: p.y, rotate: p.rotate })
+    });
+  } catch { /* ignore */ }
 }
 
 // ══════════════════════════════════════════════════════
@@ -530,8 +528,6 @@ document.addEventListener("pointermove", (e) => {
   store[dragState.id].y = dragState.origY + dy;
   dragState.card.style.left = store[dragState.id].x + "px";
   dragState.card.style.top  = store[dragState.id].y + "px";
-  
-
   emitMove(dragState.id, dragState.isVideo);
 });
 
@@ -545,23 +541,7 @@ document.addEventListener("pointerup", () => {
   dragState = null;
 });
 
-document.addEventListener("touchmove", (e) => {
-  if (!dragState) return;
-  const t  = e.touches[0];
-  const dx = t.clientX - dragState.startX;
-  const dy = t.clientY - dragState.startY;
-  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragState.moved = true;
-  const store = dragState.isVideo ? videoPositions : positions;
-  store[dragState.id].x = dragState.origX + dx;
-  store[dragState.id].y = dragState.origY + dy;
-  dragState.card.style.left = store[dragState.id].x + "px";
-  dragState.card.style.top  = store[dragState.id].y + "px";
-
-  emitMove(dragState.id, dragState.isVideo);
-  e.preventDefault();
-}, { passive: false });
-
-document.addEventListener("touchend", () => {
+document.addEventListener("pointercancel", () => {
   if (!dragState) return;
   dragState.card.classList.remove("dragging");
   dragState = null;
@@ -748,176 +728,6 @@ function resetRotate() {
   if (deg)   deg.textContent = "0°";
   if (cropper) cropper.rotateTo(0);
 }
-// ── SOCKET REALTIME ──────────────────────────
-
-socket.on("memoryMoved", (data) => {
-  const card = document.querySelector(
-    `.memory-card[data-id="${data.id}"]`
-  );
-
-  if (!card) return;
-
-  positions[data.id] = {
-    x: data.x,
-    y: data.y,
-    rotate: data.rotate
-  };
-
-  card.style.transition = "none";
-  card.style.left = data.x + "px";
-  card.style.top = data.y + "px";
-  card.style.transform = `rotate(${data.rotate}deg)`;
-});
-
-socket.on("videoMoved", (data) => {
-  const cards = document.querySelectorAll(".video-card");
-
-  let target = null;
-
-  cards.forEach((c) => {
-    const btn = c.querySelector(".delete-btn");
-
-    if (
-      btn &&
-      btn.getAttribute("onclick")?.includes(`(${data.id})`)
-    ) {
-      target = c;
-    }
-  });
-
-  if (!target) return;
-
-  videoPositions[data.id] = {
-    x: data.x,
-    y: data.y,
-    rotate: data.rotate
-  };
-
-  target.style.left = data.x + "px";
-  target.style.top = data.y + "px";
-  target.style.transform = `rotate(${data.rotate}deg)`;
-});
-// ── Load Memories ──────────────────────────────────────
-async function loadMemories() {
-  const container = document.getElementById("memoryContainer");
-  container.innerHTML = '<div class="loading">đang tải những kỷ niệm... ♥</div>';
-  try {
-    const res      = await fetch(API_URL);
-    const memories = await res.json();
-    container.innerHTML = "";
-    if (memories.length === 0) {
-      container.innerHTML = `<div class="empty-state"><span class="big-heart">💌</span><h2>Chưa có kỷ niệm nào</h2><p>Hãy thêm khoảnh khắc đầu tiên của hai đứa nhé ♥</p></div>`;
-      return;
-    }
-    const cols = Math.floor((window.innerWidth - 40) / 240) || 3;
-    const rows = Math.ceil(memories.length / cols);
-    container.style.minHeight = (rows * 360 + 100) + "px";
-
-    memories.forEach((memory, index) => {
-      const card = document.createElement("div");
-      card.className = "memory-card";
-      card.dataset.id = memory.id;
-      const pos = getInitialPos(memory, index, cols);
-      positions[memory.id] = pos;
-      if (memory.pos_x == null) savePosition(memory.id);
-      card.style.left      = pos.x + "px";
-      card.style.top       = pos.y + "px";
-      card.style.transform = `rotate(${pos.rotate}deg)`;
-      card.style.zIndex    = 1;
-      const d       = new Date(memory.date);
-      const dateStr = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
-      card.innerHTML = `
-        ${memory.image
-  ? `<img src="${memory.image}?t=${Date.now()}" alt="${memory.title}" loading="lazy"/>`
-          : `<div style="width:100%;aspect-ratio:1/1;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:3rem;">♥</div>`
-        }
-        <div class="card-body">
-          <div class="card-title">${memory.title}</div>
-          <div class="card-date">📅 ${dateStr}</div>
-          ${memory.description ? `<div class="card-desc">${memory.description}</div>` : ""}
-          <div class="card-actions">
-            <button class="edit-btn"   onclick='editMemory(${JSON.stringify(memory)})'>✏️ Sửa</button>
-            <button class="delete-btn" onclick='deleteMemory(${memory.id})'>🗑 Xoá</button>
-          </div>
-        </div>`;
-      container.appendChild(card);
-      makeDraggable(card, memory.id, false);
-    });
-  } catch {
-    document.getElementById("memoryContainer").innerHTML = `<div class="empty-state"><span class="big-heart">😢</span><h2>Không thể kết nối server</h2><p>Hãy đảm bảo server đang chạy tại localhost:3000</p></div>`;
-  }
-}
-
-// ── Load Videos ────────────────────────────────────────
-async function loadVideos() {
-  const container = document.getElementById("videoContainer");
-  container.innerHTML = '<div class="loading">đang tải video... ♥</div>';
-  try {
-    const res    = await fetch(VIDEO_API_URL);
-    const videos = await res.json();
-    container.innerHTML = "";
-    if (videos.length === 0) {
-      container.innerHTML = `<div class="empty-state"><span class="big-heart">🎬</span><h2>Chưa có video nào</h2><p>Hãy thêm video đầu tiên của hai đứa nhé ♥</p></div>`;
-      return;
-    }
-    const cols = Math.floor((window.innerWidth - 40) / 240) || 3;
-    const rows = Math.ceil(videos.length / cols);
-    container.style.minHeight = (rows * 360 + 100) + "px";
-
-    videos.forEach((video, index) => {
-      const card = document.createElement("div");
-      card.className = "video-card";
-      card.dataset.id = video.id;
-      const pos = getInitialPos(video, index, cols);
-      videoPositions[video.id] = pos;
-      if (video.pos_x == null) savePosition(video.id, true);
-      card.style.left      = pos.x + "px";
-      card.style.top       = pos.y + "px";
-      card.style.transform = `rotate(${pos.rotate}deg)`;
-      card.style.zIndex    = 1;
-      const d       = new Date(video.date);
-      const dateStr = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
-      const videoSrc = `${BASE_URL}/videos-file/${video.filename}`;
-      card.innerHTML = `
-        <div class="video-thumb">
-          <video src="${videoSrc}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;pointer-events:none;"></video>
-          <div class="video-play-icon">▶️</div>
-        </div>
-        <div class="card-body">
-          <div class="card-title">${video.title}</div>
-          <div class="card-date">📅 ${dateStr}</div>
-          ${video.description ? `<div class="card-desc">${video.description}</div>` : ""}
-          <div class="card-actions">
-            <button class="play-btn"   onclick='playVideo("${videoSrc}")'>▶ Xem</button>
-            <button class="edit-btn"   onclick='editVideo(${JSON.stringify(video)})'>✏️</button>
-            <button class="delete-btn" onclick='deleteVideo(${video.id})'>🗑</button>
-          </div>
-        </div>`;
-      container.appendChild(card);
-      makeDraggable(card, video.id, true);
-    });
-  } catch {
-    document.getElementById("videoContainer").innerHTML = `<div class="empty-state"><span class="big-heart">😢</span><h2>Không thể kết nối server</h2></div>`;
-  }
-}
-
-// ── Video fullscreen player ────────────────────────────
-function playVideo(src) {
-  let overlay = document.getElementById("videoOverlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.id = "videoOverlay";
-    overlay.innerHTML = `<video controls></video><button class="close-video" onclick="closeVideoPlayer()">✕ Đóng</button>`;
-    document.body.appendChild(overlay);
-  }
-  overlay.querySelector("video").src = src;
-  overlay.classList.add("open");
-  overlay.querySelector("video").play();
-}
-function closeVideoPlayer() {
-  const overlay = document.getElementById("videoOverlay");
-  if (overlay) { overlay.classList.remove("open"); overlay.querySelector("video").pause(); }
-}
 
 function openForm() {
   document.getElementById("formTitle").innerText = "Thêm khoảnh khắc";
@@ -1085,7 +895,6 @@ document.getElementById("videoFormOverlay").addEventListener("click", function(e
   if (e.target === this) closeVideoForm();
 });
 
-<<<<<<< HEAD
 // Music panel: click ngoài để đóng
 document.addEventListener("click", (e) => {
   const panel = document.getElementById("musicPanel");
@@ -1152,6 +961,4 @@ document
 // ── Start ─────────────────────────────────────────────────
 loadMusicList();
 loadMemories();
-=======
 loadMemories();
->>>>>>> 857eae689a21b99b8a527eb9b3b9fcdfb500023c
