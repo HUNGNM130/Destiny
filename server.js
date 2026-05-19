@@ -1,6 +1,32 @@
-// ─────────────────────────────────────────────
-// MYSQL
-// ─────────────────────────────────────────────
+const express = require("express");
+const mysql = require("mysql2");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const cors = require("cors");
+const http = require("http");
+const { Server } = require("socket.io");
+
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+
+const app = express();
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use("/uploads-video", express.static("uploads-video"));
+require("dotenv").config();
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
