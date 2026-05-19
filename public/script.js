@@ -89,67 +89,27 @@ async function savePosition(id, isVideo = false) {
 // ── Drag & Drop ────────────────────────────────────────
 let dragState = null;
 
-let dragState = null;
-let moveRAF = null;
-
-function updateCardPosition(card, x, y, rotate) {
-  card.style.transform =
-    `translate3d(${x}px, ${y}px, 0) rotate(${rotate}deg)`;
-}
-
 document.addEventListener("mousemove", (e) => {
-
   if (!dragState) return;
+  const dx = e.clientX - dragState.startX;
+  const dy = e.clientY - dragState.startY;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragState.moved = true;
+  const store = dragState.isVideo ? videoPositions : positions;
+  store[dragState.id].x = dragState.origX + dx;
+  store[dragState.id].y = dragState.origY + dy;
+  dragState.card.style.left = store[dragState.id].x + "px";
+  dragState.card.style.top  = store[dragState.id].y + "px";
+  
 
-  if (moveRAF) cancelAnimationFrame(moveRAF);
-
-  moveRAF = requestAnimationFrame(() => {
-
-    const dx = e.clientX - dragState.startX;
-    const dy = e.clientY - dragState.startY;
-
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      dragState.moved = true;
-    }
-
-    const store =
-      dragState.isVideo
-        ? videoPositions
-        : positions;
-
-    store[dragState.id].x =
-      dragState.origX + dx;
-
-    store[dragState.id].y =
-      dragState.origY + dy;
-
-    updateCardPosition(
-      dragState.card,
-      store[dragState.id].x,
-      store[dragState.id].y,
-      store[dragState.id].rotate
-    );
-
-    emitMove(
-      dragState.id,
-      dragState.isVideo
-    );
-  });
+  emitMove(dragState.id, dragState.isVideo);
 });
 
 document.addEventListener("mouseup", () => {
-
   if (!dragState) return;
-
   dragState.card.classList.remove("dragging");
-
-  if (dragState.moved) {
-    savePosition(
-      dragState.id,
-      dragState.isVideo
-    );
-  }
-
+  const store = dragState.isVideo ? videoPositions : positions;
+  dragState.card.style.transform = `rotate(${store[dragState.id].rotate}deg)`;
+  if (dragState.moved) savePosition(dragState.id, dragState.isVideo);
   dragState = null;
 });
 
@@ -284,7 +244,9 @@ socket.on("memoryMoved", (data) => {
   };
 
   card.style.transition = "none";
-  updateCardPosition(card, pos.x, pos.y, pos.rotate);
+  card.style.left = data.x + "px";
+  card.style.top = data.y + "px";
+  card.style.transform = `rotate(${data.rotate}deg)`;
 });
 
 socket.on("videoMoved", (data) => {
@@ -315,7 +277,6 @@ socket.on("videoMoved", (data) => {
   target.style.top = data.y + "px";
   target.style.transform = `rotate(${data.rotate}deg)`;
 });
-
 // ── Load Memories ──────────────────────────────────────
 async function loadMemories() {
   const container = document.getElementById("memoryContainer");
@@ -339,12 +300,9 @@ async function loadMemories() {
       const pos = getInitialPos(memory, index, cols);
       positions[memory.id] = pos;
       if (memory.pos_x == null) savePosition(memory.id);
-      updateCardPosition(
-  card,
-  data.x,
-  data.y,
-  data.rotate
-);
+      card.style.left      = pos.x + "px";
+      card.style.top       = pos.y + "px";
+      card.style.transform = `rotate(${pos.rotate}deg)`;
       card.style.zIndex    = 1;
       const d       = new Date(memory.date);
       const dateStr = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
