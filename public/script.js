@@ -4,6 +4,7 @@ const BASE_URL =
     : window.location.origin;
 const API_URL       = `${BASE_URL}/memories`;
 const VIDEO_API_URL = `${BASE_URL}/videos`;
+const MUSIC_API_URL = `${BASE_URL}/musics`;
 const socket = io(BASE_URL);
 
 // ══════════════════════════════════════════════════════
@@ -903,5 +904,61 @@ document.addEventListener("click", (e) => {
   }
 });
 
+async function loadMusicList() {
+
+  try {
+
+    const res = await fetch(MUSIC_API_URL);
+
+    const musics = await res.json();
+
+    const select =
+      document.getElementById("musicSelect");
+
+    select.innerHTML =
+      `<option value="">-- Chọn nhạc --</option>`;
+
+    musics.forEach(music => {
+
+      const option =
+        document.createElement("option");
+
+      option.value =
+        `${BASE_URL}/music-file/${music.filename}`;
+
+      option.textContent =
+        music.title || music.filename;
+
+      select.appendChild(option);
+    });
+
+  } catch (err) {
+
+    console.error(err);
+  }
+}
+
+document
+  .getElementById("musicSelect")
+  .addEventListener("change", function () {
+
+    if (!this.value) return;
+
+    audio.src = this.value;
+
+    audio.loop = true;
+
+    audio.play();
+
+    musicLoaded = true;
+    musicPlaying = true;
+
+    document
+      .getElementById("musicToggleBtn")
+      .textContent = "⏸";
+});
+
 // ── Start ─────────────────────────────────────────────────
+loadMusicList();
+loadMemories();
 loadMemories();
