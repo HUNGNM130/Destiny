@@ -691,4 +691,19 @@ header p {
   white-space: nowrap;
   transition: background .2s;
 }
+.memory-card,
+.video-card{
+  position:absolute;
+  will-change:transform;
+  transition:
+    transform .08s linear,
+    box-shadow .2s;
+  touch-action:none;
+}
+
+.dragging{
+  transition:none !important;
+  cursor:grabbing;
+  z-index:9999 !important;
+}
 .btn-rotate-reset:hover { background: var(--rose); color: #fff; }

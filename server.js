@@ -35,7 +35,21 @@ io.on("connection", (socket) => {
 
     socket.broadcast.emit("videoMoved", data);
   });
+  socket.on("memoryAdded", () => {
+  loadMemories();
+});
 
+socket.on("videoAdded", () => {
+  loadVideos();
+});
+
+socket.on("memoryDeleted", () => {
+  loadMemories();
+});
+
+socket.on("videoDeleted", () => {
+  loadVideos();
+});
   socket.on("disconnect", () => {
 
     console.log("🔴 User disconnected");
@@ -177,6 +191,7 @@ app.get("/", (req, res) => {
     success: true,
     message: "Love Diary API running"
   });
+  
 });
 
 // ─────────────────────────────────────────────
@@ -231,9 +246,11 @@ app.post(
         }
 
         res.json({
-          success: true,
-          id: result.insertId
-        });
+  success: true,
+  id: result.insertId
+});
+
+io.emit("memoryAdded");
       }
     );
   }
@@ -277,8 +294,10 @@ app.put(
           }
 
           res.json({
-            success: true
-          });
+  success: true
+});
+
+io.emit("memoryDeleted");
         }
       );
 
@@ -425,9 +444,10 @@ if (!filename) {
         }
 
         res.json({
-          success: true,
-          id: result.insertId
-        });
+  success: true
+});
+
+io.emit("videoDeleted");
       }
     );
   }
