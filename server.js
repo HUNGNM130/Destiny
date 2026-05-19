@@ -125,11 +125,9 @@ const uploadVideo = multer({
 // ─────────────────────────────────────────────
 // TEST ROUTE
 // ─────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "Love Diary API running"
-  });
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // ─────────────────────────────────────────────
