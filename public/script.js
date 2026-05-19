@@ -61,7 +61,31 @@ function emitMove(id, isVideo = false) {
     }
   );
 }
+async function savePosition(id, isVideo = false) {
+  const store = isVideo ? videoPositions : positions;
+  const p = store[id];
 
+  if (!p) return;
+
+  try {
+    await fetch(
+      `${isVideo ? VIDEO_API_URL : API_URL}/${id}/position`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          pos_x: p.x,
+          pos_y: p.y,
+          pos_rotate: p.rotate
+        })
+      }
+    );
+  } catch (err) {
+    console.error("Save position failed:", err);
+  }
+}
 // ── Drag & Drop ────────────────────────────────────────
 let dragState = null;
 
