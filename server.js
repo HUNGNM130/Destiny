@@ -1,14 +1,17 @@
+require("dotenv").config();
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+console.log("HOST:", process.env.DB_HOST);
+console.log("USER:", process.env.DB_USER);
+console.log("PORT:", process.env.DB_PORT);
 const express = require("express");
 const mysql = require("mysql2");
 const multer = require("multer");
+const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
-const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
-
-const cloudinary = require("cloudinary").v2;
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 const app = express();
 const server = http.createServer(app);
@@ -19,14 +22,58 @@ const io = new Server(server, {
   }
 });
 
+io.on("connection", (socket) => {
+
+  console.log("🟢 User connected");
+
+  socket.on("moveMemory", (data) => {
+
+    socket.broadcast.emit("memoryMoved", data);
+  });
+
+  socket.on("moveVideo", (data) => {
+
+    socket.broadcast.emit("videoMoved", data);
+  });
+
+  socket.on("disconnect", () => {
+
+    console.log("🔴 User disconnected");
+  });
+
+});
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+// ─────────────────────────────────────────────
+// PORT
+// ─────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ─────────────────────────────────────────────
+// CORS
+// ─────────────────────────────────────────────
+app.use(cors({
+  origin: "*"
+}));
 
-app.use("/uploads-video", express.static("uploads-video"));
-require("dotenv").config();
+app.use(express.json());
+
+// ─────────────────────────────────────────────
+// STATIC
+// ─────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use(
+  "/videos-file",
+  express.static(path.join(__dirname, "uploads-video"))
+);
+
+// ─────────────────────────────────────────────
+// MYSQL
+// ─────────────────────────────────────────────
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -125,9 +172,11 @@ const uploadVideo = multer({
 // ─────────────────────────────────────────────
 // TEST ROUTE
 // ─────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.json({
+    success: true,
+    message: "Love Diary API running"
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -189,7 +238,16 @@ app.post(
     );
   }
 );
+app.put("/memories/:id/position", async (req, res) => {
+  const { pos_x, pos_y, pos_rotate } = req.body;
 
+  await db.query(
+    "UPDATE memories SET pos_x=?, pos_y=?, pos_rotate=? WHERE id=?",
+    [pos_x, pos_y, pos_rotate, req.params.id]
+  );
+
+  res.json({ success: true });
+});
 // UPDATE memory
 app.put(
   "/memories/:id",
@@ -384,7 +442,16 @@ if (!filename) {
     );
   }
 );
+app.put("/videos/:id/position", async (req, res) => {
+  const { pos_x, pos_y, pos_rotate } = req.body;
 
+  await db.query(
+    "UPDATE videos SET pos_x=?, pos_y=?, pos_rotate=? WHERE id=?",
+    [pos_x, pos_y, pos_rotate, req.params.id]
+  );
+
+  res.json({ success: true });
+});
 // UPDATE video
 app.put(
   "/videos/:id",
