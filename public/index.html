@@ -16,7 +16,32 @@
     <div class="header-hearts">♥ ♥ ♥</div>
     <h1>Our Love Diary</h1>
     <p>Mỗi khoảnh khắc là mãi mãi ✦</p>
-    <div class="tab-toggle">
+
+    <!-- Love Counter -->
+    <div id="loveCounter">
+      <span id="counterHeart">💕</span>
+      <div class="counter-unit">
+        <span class="counter-num" id="cDays">0</span>
+        <span class="counter-label">ngày</span>
+      </div>
+      <span class="counter-sep">·</span>
+      <div class="counter-unit">
+        <span class="counter-num" id="cHours">0</span>
+        <span class="counter-label">giờ</span>
+      </div>
+      <span class="counter-sep">·</span>
+      <div class="counter-unit">
+        <span class="counter-num" id="cMins">0</span>
+        <span class="counter-label">phút</span>
+      </div>
+      <span class="counter-sep">·</span>
+      <div class="counter-unit">
+        <span class="counter-num" id="cSecs">0</span>
+        <span class="counter-label">giây</span>
+      </div>
+    </div>
+
+    <div class="tab-toggle" style="margin-top:20px;">
       <button class="tab-btn active" id="tabPhotos" onclick="switchTab('photos')">📷 Kỷ niệm</button>
       <button class="tab-btn" id="tabVideos" onclick="switchTab('videos')">🎬 Video</button>
     </div>
@@ -24,18 +49,74 @@
 
   <!-- Tab ảnh -->
   <div id="pagePhotos">
-    <button class="btn-add" onclick="openForm()">Thêm khoảnh khắc</button>
+    <div class="toolbar">
+      <button class="btn-add" onclick="openForm()">Thêm khoảnh khắc</button>
+      <div class="filter-group">
+        <select class="filter-select" id="filterMonth" onchange="applyFilters()">
+          <option value="">📅 Tất cả tháng</option>
+        </select>
+        <select class="filter-select" id="filterYear" onchange="applyFilters()">
+          <option value="">📆 Tất cả năm</option>
+        </select>
+        <select class="filter-select" id="sortOrder" onchange="applyFilters()">
+          <option value="desc">🕐 Mới nhất</option>
+          <option value="asc">🕐 Cũ nhất</option>
+        </select>
+      </div>
+    </div>
     <div id="memoryContainer">
       <div class="loading">đang tải những kỷ niệm... ♥</div>
     </div>
+    <div id="photoPagination" class="pagination"></div>
   </div>
 
   <!-- Tab video -->
   <div id="pageVideos" style="display:none;">
-    <button class="btn-add" onclick="openVideoForm()">Thêm video</button>
+    <div class="toolbar">
+      <button class="btn-add" onclick="openVideoForm()">Thêm video</button>
+      <div class="filter-group">
+        <select class="filter-select" id="filterVideoMonth" onchange="applyVideoFilters()">
+          <option value="">📅 Tất cả tháng</option>
+        </select>
+        <select class="filter-select" id="filterVideoYear" onchange="applyVideoFilters()">
+          <option value="">📆 Tất cả năm</option>
+        </select>
+        <select class="filter-select" id="sortVideoOrder" onchange="applyVideoFilters()">
+          <option value="desc">🕐 Mới nhất</option>
+          <option value="asc">🕐 Cũ nhất</option>
+        </select>
+      </div>
+    </div>
     <div id="videoContainer">
       <div class="loading">đang tải video... ♥</div>
     </div>
+    <div id="videoPagination" class="pagination"></div>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox">
+    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+    <img id="lightboxImg" src="" alt="" />
+    <div class="lightbox-caption">
+      <h3 id="lightboxTitle"></h3>
+      <p id="lightboxDate"></p>
+    </div>
+    <div class="lightbox-nav">
+      <button onclick="lightboxPrev()">← Trước</button>
+      <button onclick="closeLightbox()">✕ Đóng</button>
+      <button onclick="lightboxNext()">Sau →</button>
+    </div>
+  </div>
+
+  <!-- Music Player -->
+  <div id="musicPlayer">
+    <div id="musicPanel">
+      <p>🎵 Nhạc nền</p>
+      <label class="music-upload-label" for="musicFileInput">🎶 Chọn file nhạc</label>
+      <input type="file" id="musicFileInput" accept="audio/*" onchange="loadMusic(event)" />
+      <div id="musicTrackName">Chưa có bài nào ♥</div>
+    </div>
+    <button id="musicToggleBtn" onclick="toggleMusic()" title="Nhạc nền">🎵</button>
   </div>
 
   <!-- Modal: Thêm/Sửa ảnh -->
@@ -65,7 +146,6 @@
           <div class="cropper-container-box">
             <img id="cropperImg" />
           </div>
-          <!-- Thanh xoay -->
           <div class="rotate-row">
             <span class="rotate-label">↺ Xoay</span>
             <input type="range" id="rotateRange" min="0" max="360" value="0"
