@@ -672,8 +672,8 @@ function closeVideoPlayer() {
 // ══════════════════════════════════════════════════════
 //  FORM: ẢNH
 // ══════════════════════════════════════════════════════
-let cropper     = null;
-let croppedBlob = null;
+var cropper     = null;
+var croppedBlob = null;
 
 function onImageSelected(event) {
   const file = event.target.files[0];
