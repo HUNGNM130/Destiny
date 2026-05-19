@@ -31,26 +31,9 @@ io.on("connection", (socket) => {
   socket.on("disconnect", ()     => { console.log("🔴 User disconnected"); });
 });
 
-io.on("connection", (socket) => {
-
-  console.log("🟢 User connected");
-
-  socket.on("moveMemory", (data) => {
-
-    socket.broadcast.emit("memoryMoved", data);
-  });
-
-  socket.on("moveVideo", (data) => {
-
-    socket.broadcast.emit("videoMoved", data);
-  });
-
-  socket.on("disconnect", () => {
-
-    console.log("🔴 User disconnected");
-  });
-
-});
+// ─────────────────────────────────────────────
+// CLOUDINARY
+// ─────────────────────────────────────────────
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key:    process.env.CLOUDINARY_API_KEY,
@@ -259,10 +242,7 @@ app.delete("/memories/:id", (req, res) => {
   });
 });
 
-// UPDATE memory position
-// UPDATE memory position
 app.patch("/memories/:id/position", (req, res) => {
-
   const { x, y, rotate } = req.body;
   db.query(
     "UPDATE memories SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
@@ -276,33 +256,59 @@ app.patch("/memories/:id/position", (req, res) => {
 });
 
 // ── 8. REACTION endpoint ─────────────────────────────────
+// ── REACTION endpoint ─────────────────────────────────
 app.post("/memories/:id/react", (req, res) => {
   const { emoji } = req.body;
-  const { id }    = req.params;
+  const { id } = req.params;
 
-  db.query("SELECT reactions FROM memories WHERE id=?", [id], (err, rows) => {
-    if (err || !rows.length) return res.status(404).json({ error: "Not found" });
+  db.query(
+    "SELECT reactions FROM memories WHERE id=?",
+    [id],
+    (err, rows) => {
 
-    let reactions = {};
-    try { reactions = JSON.parse(rows[0].reactions || "{}"); } catch {}
+      if (err || !rows.length) {
+        return res.status(404).json({
+          error: "Not found"
+        });
+      }
 
-      io.emit("memoryMoved", {
-        id: req.params.id,
-        x,
-        y,
-        rotate
-      });
+      let reactions = {};
+
+      try {
+        reactions = JSON.parse(rows[0].reactions || "{}");
+      } catch {}
+
+      reactions[emoji] = (reactions[emoji] || 0) + 1;
+
+      const jsonStr = JSON.stringify(reactions);
+
+      db.query(
+        "UPDATE memories SET reactions=? WHERE id=?",
+        [jsonStr, id],
+        (err2) => {
+
+          if (err2) {
+            return res.status(500).json({
+              error: err2.message
+            });
+          }
+
+          res.json({
+            success: true,
+            emoji,
+            count: reactions[emoji],
+            reactions
+          });
+
+          io.emit("reactionAdded", {
+            memoryId: id,
+            emoji,
+            count: reactions[emoji]
+          });
+        }
+      );
     }
-
-    reactions[emoji] = (reactions[emoji] || 0) + 1;
-    const jsonStr = JSON.stringify(reactions);
-
-    db.query("UPDATE memories SET reactions=? WHERE id=?", [jsonStr, id], (err2) => {
-      if (err2) return res.status(500).json({ error: err2.message });
-      res.json({ success: true, emoji, count: reactions[emoji], reactions });
-      io.emit("reactionAdded", { memoryId: id, emoji, count: reactions[emoji] });
-    });
-  });
+  );
 });
 
 // ─────────────────────────────────────────────
@@ -375,31 +381,15 @@ app.delete("/videos/:id", (req, res) => {
   });
 });
 
-// UPDATE video position
-// UPDATE video position
 app.patch("/videos/:id/position", (req, res) => {
   const { x, y, rotate } = req.body;
   db.query(
     "UPDATE videos SET pos_x=?,pos_y=?,pos_rotate=? WHERE id=?",
     [x, y, rotate, req.params.id],
     (err) => {
-
-      if (err) {
-        return res.status(500).json({
-          error: err.message
-        });
-      }
-
-      res.json({
-        success: true
-      });
-
-      io.emit("videoMoved", {
-        id: req.params.id,
-        x,
-        y,
-        rotate
-      });
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+      io.emit("videoMoved", { id: req.params.id, x, y, rotate });
     }
   );
 });
