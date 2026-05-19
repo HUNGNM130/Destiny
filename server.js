@@ -72,6 +72,10 @@ app.use("/videos-file", express.static(
     maxAge: "1d"
   }
 ));
+app.use(
+  "/music-file",
+  express.static(path.join(__dirname, "uploads-music"))
+);
 
 
 // ─────────────────────────────────────────────
@@ -132,7 +136,15 @@ db.connect((err) => {
       \`value\` TEXT
     )
   `);
-
+    // TABLE musics
+db.query(`
+  CREATE TABLE IF NOT EXISTS musics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255),
+    filename VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`);
   console.log("✅ Tables ready");
 });
 
@@ -141,6 +153,9 @@ db.connect((err) => {
 // ─────────────────────────────────────────────
 if (!fs.existsSync("uploads"))       fs.mkdirSync("uploads");
 if (!fs.existsSync("uploads-video")) fs.mkdirSync("uploads-video");
+if (!fs.existsSync("uploads-music")) {
+  fs.mkdirSync("uploads-music");
+}
 
 // ─────────────────────────────────────────────
 // MULTER
@@ -158,10 +173,29 @@ const videoStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads-video/"),
   filename:    (req, file, cb) => cb(null, Date.now() + "-" + Math.round(Math.random() * 1e9) + path.extname(file.originalname))
 });
+const musicStorage = multer.diskStorage({
+
+  destination: (req, file, cb) => {
+    cb(null, "uploads-music/");
+  },
+
+  filename: (req, file, cb) => {
+
+    cb(
+      null,
+      Date.now() +
+      "-" +
+      Math.round(Math.random() * 1e9) +
+      path.extname(file.originalname)
+    );
+  }
+});
 
 const uploadImage = multer({ storage: imageStorage });
 const uploadVideo = multer({ storage: videoStorage });
-
+const uploadMusic = multer({
+  storage: musicStorage
+});
 // ─────────────────────────────────────────────
 // ROUTES: TEST + VIEW
 // ─────────────────────────────────────────────
@@ -423,7 +457,107 @@ app.patch("/videos/:id/position", (req, res) => {
     }
   );
 });
+// ─────────────────────────────────────────────
+// MUSIC ROUTES
+// ─────────────────────────────────────────────
 
+// GET ALL MUSIC
+app.get("/musics", (req, res) => {
+
+  db.query(
+    "SELECT * FROM musics ORDER BY created_at DESC",
+    (err, rows) => {
+
+      if (err) {
+        return res.status(500).json({
+          error: err.message
+        });
+      }
+
+      res.json(rows);
+    }
+  );
+});
+
+
+// UPLOAD MUSIC
+app.post(
+  "/musics",
+  uploadMusic.single("music"),
+  (req, res) => {
+
+    const title = req.body.title;
+    const filename = req.file?.filename;
+
+    if (!filename) {
+      return res.status(400).json({
+        error: "No music file"
+      });
+    }
+
+    db.query(
+      "INSERT INTO musics (title, filename) VALUES (?, ?)",
+      [title, filename],
+      (err, result) => {
+
+        if (err) {
+          return res.status(500).json({
+            error: err.message
+          });
+        }
+
+        res.json({
+          success: true,
+          id: result.insertId
+        });
+      }
+    );
+  }
+);
+
+
+// DELETE MUSIC
+app.delete("/musics/:id", (req, res) => {
+
+  const { id } = req.params;
+
+  db.query(
+    "SELECT filename FROM musics WHERE id=?",
+    [id],
+    (err, rows) => {
+
+      if (!err && rows[0]?.filename) {
+
+        const filePath = path.join(
+          __dirname,
+          "uploads-music",
+          rows[0].filename
+        );
+
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      db.query(
+        "DELETE FROM musics WHERE id=?",
+        [id],
+        (err2) => {
+
+          if (err2) {
+            return res.status(500).json({
+              error: err2.message
+            });
+          }
+
+          res.json({
+            success: true
+          });
+        }
+      );
+    }
+  );
+});
 // ─────────────────────────────────────────────
 // START
 // ─────────────────────────────────────────────
