@@ -22,13 +22,29 @@ const PORT   = process.env.PORT || 3000;
 // ─────────────────────────────────────────────
 // SOCKET.IO
 // ─────────────────────────────────────────────
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+  cors: {
+    origin: true,
+    credentials: true
+  }
+});
 
 io.on("connection", (socket) => {
+
   console.log("🟢 User connected");
-  socket.on("moveMemory", (data) => { socket.broadcast.emit("memoryMoved", data); });
-  socket.on("moveVideo",  (data) => { socket.broadcast.emit("videoMoved",  data); });
-  socket.on("disconnect", ()     => { console.log("🔴 User disconnected"); });
+
+  socket.on("moveMemory", (data) => {
+    socket.broadcast.emit("memoryMoved", data);
+  });
+
+  socket.on("moveVideo", (data) => {
+    socket.broadcast.emit("videoMoved", data);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔴 User disconnected");
+  });
+
 });
 
 // ─────────────────────────────────────────────
@@ -43,10 +59,20 @@ cloudinary.config({
 // ─────────────────────────────────────────────
 // MIDDLEWARE
 // ─────────────────────────────────────────────
-app.use(cors({ origin: "*" }));
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/videos-file", express.static(path.join(__dirname, "uploads-video")));
+app.use("/videos-file", express.static(
+  path.join(__dirname, "uploads-video"),
+  {
+    maxAge: "1d"
+  }
+));
+
 
 // ─────────────────────────────────────────────
 // MYSQL
@@ -121,7 +147,11 @@ if (!fs.existsSync("uploads-video")) fs.mkdirSync("uploads-video");
 // ─────────────────────────────────────────────
 const imageStorage = new CloudinaryStorage({
   cloudinary,
-  params: { folder: "love-diary", allowed_formats: ["jpg","jpeg","png","webp"] }
+  params: async (req, file) => ({
+  folder: "love-diary",
+  resource_type: "image",
+  allowed_formats: ["jpg", "jpeg", "png", "webp"]
+})
 });
 
 const videoStorage = multer.diskStorage({
@@ -258,6 +288,7 @@ app.patch("/memories/:id/position", (req, res) => {
 // ── 8. REACTION endpoint ─────────────────────────────────
 // ── REACTION endpoint ─────────────────────────────────
 app.post("/memories/:id/react", (req, res) => {
+
   const { emoji } = req.body;
   const { id } = req.params;
 
@@ -276,15 +307,15 @@ app.post("/memories/:id/react", (req, res) => {
 
       try {
         reactions = JSON.parse(rows[0].reactions || "{}");
-      } catch {}
+      } catch {
+        reactions = {};
+      }
 
       reactions[emoji] = (reactions[emoji] || 0) + 1;
 
-      const jsonStr = JSON.stringify(reactions);
-
       db.query(
         "UPDATE memories SET reactions=? WHERE id=?",
-        [jsonStr, id],
+        [JSON.stringify(reactions), id],
         (err2) => {
 
           if (err2) {
@@ -293,16 +324,15 @@ app.post("/memories/:id/react", (req, res) => {
             });
           }
 
-          res.json({
-            success: true,
-            emoji,
-            count: reactions[emoji],
-            reactions
-          });
-
           io.emit("reactionAdded", {
             memoryId: id,
             emoji,
+            count: reactions[emoji]
+          });
+
+          res.json({
+            success: true,
+            reactions,
             count: reactions[emoji]
           });
         }
