@@ -1,11 +1,11 @@
 // ============================================================
-//  Love Days — Morphing Cursor effect on "Our Love Diary" title
-//  Hiện số ngày yêu nhau khi hover vào chữ h1
+//  Love Days — Morphing Cursor effect trên chữ h1
+//  Vòng tròn to theo chuột, trong vòng tròn nhỏ hiện số ngày yêu
+//  Inspired by Joly UI's MagneticText / Morphing Cursor
 // ============================================================
 (function () {
   'use strict';
 
-  // ── Ngày bắt đầu yêu nhau ────────────────────────────────
   const LOVE_START_DATE = new Date('2025-09-20');
 
   function getDaysInLove() {
@@ -18,69 +18,103 @@
     const h1 = document.querySelector('header h1');
     if (!h1) return;
 
-    const days     = getDaysInLove();
-    const hoverText = `${days} ngày ♥`;
+    // ── Cursor circle elements ───────────────────────────
+    // Outer ring
+    const outerRing = document.createElement('div');
+    outerRing.className = 'mc-outer-ring';
 
-    h1.style.position   = 'relative';
-    h1.style.display    = 'inline-block';
-    h1.style.cursor     = 'default';
-    h1.style.userSelect = 'none';
-    h1.style.overflow   = 'hidden';
+    // Inner circle with text
+    const innerCircle = document.createElement('div');
+    innerCircle.className = 'mc-inner-circle';
 
-    // Overlay that covers the full h1 on hover
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: absolute;
-      inset: 0;
-      border-radius: 12px;
-      background: var(--wine);
-      pointer-events: none;
-      overflow: hidden;
-      opacity: 0;
-      transform: scale(0.92);
-      transition: opacity 0.42s cubic-bezier(0.33,1,0.68,1),
-                  transform 0.42s cubic-bezier(0.33,1,0.68,1);
-      z-index: 2;
-      display: flex; align-items: center; justify-content: center;
-    `;
+    const daysLabel = document.createElement('div');
+    daysLabel.className = 'mc-days-label';
 
-    const inner = document.createElement('div');
-    inner.style.cssText = `
-      font-family: 'Playfair Display', serif;
-      font-size: inherit;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: 0.02em;
-      text-align: center;
-      padding: 0 12px;
-    `;
-    inner.textContent = hoverText;
-    overlay.appendChild(inner);
-    h1.appendChild(overlay);
+    const daysNum = document.createElement('div');
+    daysNum.className = 'mc-days-num';
+
+    innerCircle.appendChild(daysNum);
+    innerCircle.appendChild(daysLabel);
+    outerRing.appendChild(innerCircle);
+    document.body.appendChild(outerRing);
+
+    // ── State ────────────────────────────────────────────
+    let isHovered   = false;
+    let mouseX      = 0;
+    let mouseY      = 0;
+    let currentX    = 0;
+    let currentY    = 0;
+    let rafId       = null;
+
+    // ── Lerp animation loop ──────────────────────────────
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function animate() {
+      currentX = lerp(currentX, mouseX, 0.12);
+      currentY = lerp(currentY, mouseY, 0.12);
+
+      outerRing.style.transform =
+        `translate(${currentX}px, ${currentY}px) translate(-50%, -50%)`;
+
+      // Inner circle counter-rotates slightly for feel
+      innerCircle.style.transform =
+        `translate(-50%, -50%) rotate(${(currentX - mouseX) * -0.08}deg)`;
+
+      rafId = requestAnimationFrame(animate);
+    }
+
+    function startLoop() {
+      if (!rafId) rafId = requestAnimationFrame(animate);
+    }
+
+    function stopLoop() {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    }
+
+    // ── Mouse tracking (global, so circle follows smoothly) ─
+    document.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    // ── Hover on h1 ──────────────────────────────────────
+    h1.style.cursor = 'none';
 
     h1.addEventListener('mouseenter', () => {
-      inner.textContent = `${getDaysInLove()} ngày ♥`;
-      overlay.style.opacity   = '1';
-      overlay.style.transform = 'scale(1)';
+      isHovered = true;
+      const days = getDaysInLove();
+      daysNum.textContent  = days;
+      daysLabel.textContent = 'ngày ♥';
+
+      outerRing.classList.add('mc-visible');
+      startLoop();
     });
 
     h1.addEventListener('mouseleave', () => {
-      overlay.style.opacity   = '0';
-      overlay.style.transform = 'scale(0.92)';
+      isHovered = false;
+      outerRing.classList.remove('mc-visible');
     });
 
-    // Touch support for mobile
-    h1.addEventListener('touchstart', () => {
-      inner.textContent = `${getDaysInLove()} ngày ♥`;
-      overlay.style.opacity   = '1';
-      overlay.style.transform = 'scale(1)';
+    // ── Touch support ────────────────────────────────────
+    h1.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      mouseX = t.clientX;
+      mouseY = t.clientY;
+      currentX = mouseX;
+      currentY = mouseY;
+
+      const days = getDaysInLove();
+      daysNum.textContent  = days;
+      daysLabel.textContent = 'ngày ♥';
+
+      outerRing.classList.add('mc-visible', 'mc-touch');
+      startLoop();
     }, { passive: true });
 
     h1.addEventListener('touchend', () => {
       setTimeout(() => {
-        overlay.style.opacity   = '0';
-        overlay.style.transform = 'scale(0.92)';
-      }, 1200);
+        outerRing.classList.remove('mc-visible', 'mc-touch');
+      }, 1400);
     }, { passive: true });
   }
 
@@ -89,4 +123,5 @@
   } else {
     initMorphingCursor();
   }
+
 })();

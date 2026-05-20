@@ -51,110 +51,214 @@ header p {
   margin-top: 8px;
 }
 
-/* ── Dock Nav (macOS-style, replaces old tab-toggle) ───── */
+/* ── Vercel Tabs Nav ──────────────────────────────────────── */
 .tab-toggle {
-  display: none; /* hidden — replaced by dock */
+  display: none;
 }
 
-/* ── Dock ────────────────────────────────────────────── */
+/* ── Dock wrap ───────────────────────────────────────────── */
 .dock-wrap {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
-  margin-bottom: 16px;
-  padding: 0 8px 0;
+  margin-top: 22px;
+  margin-bottom: 18px;
+  padding: 0 8px;
 }
 
+/* ── Dock = Vercel Tabs container ────────────────────────── */
 .dock {
+  position: relative; /* needed for absolutely-positioned indicator & ghost */
   display: inline-flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 8px 16px 10px;
-  background: rgba(255,255,255,0.55);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1.5px solid rgba(200,112,122,0.22);
-  border-radius: 22px;
-  box-shadow: 0 8px 32px rgba(139,58,74,0.13), 0 2px 8px rgba(44,26,26,0.08);
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: rgba(255,255,255,0.60);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(200,112,122,0.20);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(139,58,74,0.10), 0 1px 4px rgba(44,26,26,0.06);
 }
 
+/* Sliding active indicator (Vercel-style underline block) */
+.vercel-indicator {
+  position: absolute;
+  bottom: 4px;
+  height: calc(100% - 8px);
+  background: var(--wine);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 0;
+  /* Initial: invisible until JS positions it */
+  opacity: 1;
+  box-shadow: 0 2px 12px rgba(139,58,74,0.28);
+}
+
+/* Hover ghost highlight */
+.vercel-hover-ghost {
+  position: absolute;
+  bottom: 4px;
+  height: calc(100% - 8px);
+  background: rgba(200,112,122,0.12);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.18s, left 0.18s cubic-bezier(0.65,0,0.35,1), width 0.18s cubic-bezier(0.65,0,0.35,1);
+}
+
+/* ── Each tab item ───────────────────────────────────────── */
 .dock-item {
   position: relative;
+  z-index: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  gap: 7px;
   cursor: pointer;
-  /* JS sets width/height via inline style for magnification */
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: color 0.22s;
+  user-select: none;
+  white-space: nowrap;
 }
 
+/* Icon box — flat, no background, just the emoji */
 .dock-icon-box {
-  width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
-  font-size: 1.5rem;
-  background: var(--warm);
-  color: var(--wine);
-  transition: background 0.18s, color 0.18s;
-  box-shadow: 0 2px 8px rgba(139,58,74,0.1);
-  border: none;
-  outline: none;
-  padding: 0;
-  will-change: width, height;
+  font-size: 1.15rem;
+  line-height: 1;
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  color: inherit;
+  transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
 }
 
-.dock-item.active .dock-icon-box {
-  background: var(--wine);
-  color: #fff;
-  box-shadow: 0 4px 18px rgba(139,58,74,0.35);
+.dock-item:hover .dock-icon-box {
+  transform: scale(1.18);
 }
 
-.dock-item:not(.active):hover .dock-icon-box {
-  background: var(--blush);
-}
-
+/* Tab label — always visible */
 .dock-label {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink);
-  color: #fff;
-  font-size: 0.78rem;
-  white-space: nowrap;
-  padding: 4px 10px;
-  border-radius: 6px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s;
+  position: static !important;
+  transform: none !important;
+  opacity: 1 !important;
+  background: none !important;
+  color: inherit !important;
+  font-size: 0.85rem !important;
   font-family: 'Lora', serif;
-  letter-spacing: 0.02em;
-  z-index: 100;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  pointer-events: none;
+  transition: none;
 }
 
-.dock-label::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: var(--ink);
+/* Remove tooltip arrow */
+.dock-label::after { display: none; }
+
+/* Inactive item colour */
+.dock-item:not(.active) {
+  color: var(--faded);
+}
+.dock-item:not(.active):hover {
+  color: var(--rose);
 }
 
-.dock-item:hover .dock-label {
-  opacity: 1;
+/* Active item — white text on the dark indicator */
+.dock-item.active {
+  color: #fff;
+}
+.dock-item.active .dock-icon-box {
+  color: #fff;
 }
 
+/* Separator */
 .dock-separator {
-  width: 1.5px;
-  height: 28px;
-  background: var(--blush);
+  width: 1px;
+  height: 20px;
+  background: rgba(200,112,122,0.25);
   border-radius: 2px;
   align-self: center;
-  margin: 0 2px;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Morphing Cursor — vòng tròn theo chuột khi hover h1
+   ══════════════════════════════════════════════════════════ */
+
+/* Outer ring — follows cursor */
+.mc-outer-ring {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid var(--rose);
+  background: rgba(139,58,74,0.10);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: none;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Hidden by default */
+  opacity: 0;
+  scale: 0.4;
+  transition: opacity 0.35s cubic-bezier(0.33,1,0.68,1),
+              scale  0.35s cubic-bezier(0.34,1.56,0.64,1);
+  will-change: transform, opacity, scale;
+}
+
+.mc-outer-ring.mc-visible {
+  opacity: 1;
+  scale: 1;
+}
+
+/* Inner circle */
+.mc-inner-circle {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--wine);
+  border: 2px solid rgba(255,255,255,0.30);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  box-shadow: 0 4px 20px rgba(139,58,74,0.40);
+  will-change: transform;
+}
+
+/* Number */
+.mc-days-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+/* Label */
+.mc-days-label {
+  font-family: 'Lora', serif;
+  font-size: 0.56rem;
+  color: rgba(255,255,255,0.80);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 
@@ -924,42 +1028,37 @@ header p {
     padding: 32px 12px 20px;
   }
 
-  /* Dock scrollable trên mobile thay vì bị tràn */
+  /* Vercel Tabs scrollable on mobile */
   .dock-wrap {
-    padding: 0 4px;
+    padding: 0 8px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    justify-content: flex-start;
+    justify-content: center;
   }
   .dock-wrap::-webkit-scrollbar { display: none; }
 
   .dock {
-    gap: 8px;
-    padding: 8px 12px 10px;
-    /* Không shrink icon nhỏ quá */
+    gap: 1px;
+    padding: 3px;
     flex-shrink: 0;
   }
 
-  /* Dock item - fix min width để icon không bị méo */
   .dock-item {
-    min-width: 52px !important;
-    min-height: 52px !important;
-    width: 52px !important;
-    height: 52px !important;
+    padding: 7px 12px;
+    gap: 5px;
+    width: auto !important;
+    height: auto !important;
+    min-width: unset !important;
+    min-height: unset !important;
   }
 
   .dock-icon-box {
-    font-size: 1.3rem;
-    border-radius: 12px;
+    font-size: 1rem;
   }
 
-  /* Label hiện dưới icon trên mobile thay vì trên */
   .dock-label {
-    top: auto;
-    bottom: calc(100% + 8px);
-    font-size: 0.72rem;
-    padding: 3px 8px;
+    font-size: 0.78rem !important;
   }
 
   header h1 {
@@ -972,6 +1071,19 @@ header p {
   }
 
   .dock-separator {
-    height: 22px;
+    height: 18px;
+  }
+
+  /* Morphing cursor smaller on mobile */
+  .mc-outer-ring {
+    width: 80px;
+    height: 80px;
+  }
+  .mc-inner-circle {
+    width: 52px;
+    height: 52px;
+  }
+  .mc-days-num {
+    font-size: 1.05rem;
   }
 }

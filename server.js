@@ -27,10 +27,12 @@ io.on("connection", (socket) => {
   console.log("🟢 User connected");
 
   socket.on("moveMemory", (data) => {
+
     socket.broadcast.emit("memoryMoved", data);
   });
 
   socket.on("moveVideo", (data) => {
+
     socket.broadcast.emit("videoMoved", data);
   });
 
@@ -40,14 +42,6 @@ io.on("connection", (socket) => {
 
   socket.on("deleteVideo", (data) => {
     socket.broadcast.emit("videoDeleted", data);
-  });
-
-  socket.on("memoryAdded", () => {
-    socket.broadcast.emit("memoryAdded");
-  });
-
-  socket.on("videoAdded", () => {
-    socket.broadcast.emit("videoAdded");
   });
 
   socket.on("disconnect", () => {
