@@ -693,15 +693,16 @@ header p {
 }
 .btn-rotate-reset:hover { background: var(--rose); color: #fff; }
 
-/* ── Gallery / Sphere Tab ───────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   Sphere Gallery Tab
+   ══════════════════════════════════════════════════════════ */
 #pageGallery {
-  display: none;
-  padding: 20px 16px 60px;
+  padding: 24px 16px 80px;
   text-align: center;
 }
 
-.gallery-header {
-  margin-bottom: 16px;
+.gallery-hero {
+  margin-bottom: 28px;
 }
 
 .gallery-title {
@@ -711,52 +712,130 @@ header p {
   margin-bottom: 6px;
 }
 
-.gallery-subtitle {
+.gallery-sub {
   color: var(--faded);
-  font-size: 1rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
 }
 
-.sphere-wrapper {
+/* Centred wrapper */
+.sphere-outer {
   position: relative;
-  display: inline-block;
   margin: 0 auto;
+  /* JS sets exact width/height; this just centres it */
+}
+
+/* The actual sphere container – tiles are absolute inside */
+.sphere-container {
+  position: relative;
+  margin: 0 auto;
+  overflow: visible;
+  user-select: none;
+}
+
+/* Each tile */
+.sphere-tile {
+  position: absolute;
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+.sphere-tile-inner {
   width: 100%;
-  max-width: 500px;
-}
-
-#sphereCanvas {
-  display: block;
-  margin: 0 auto;
-  cursor: grab;
-  touch-action: pan-y;
+  height: 100%;
   border-radius: 50%;
-  /* subtle glow so sphere feels like it's glowing */
-  filter: drop-shadow(0 0 32px rgba(200,112,122,0.18));
+  overflow: hidden;
+  border: 2.5px solid rgba(255,255,255,0.6);
+  box-shadow: 0 4px 18px rgba(44,26,26,0.22), 0 1px 4px rgba(44,26,26,0.12);
+  transition: box-shadow 0.2s, border-color 0.2s;
 }
 
-#sphereCanvas:active { cursor: grabbing; }
-
-.sphere-tooltip {
-  position: fixed;
-  background: var(--wine);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-family: 'Caveat', cursive;
-  font-size: 1rem;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s;
-  z-index: 9999;
-  white-space: nowrap;
-  max-width: 200px;
-  white-space: normal;
-  box-shadow: 0 4px 16px rgba(44,26,26,0.22);
+.sphere-tile:hover .sphere-tile-inner {
+  border-color: var(--rose);
+  box-shadow: 0 6px 28px rgba(200,112,122,0.45);
 }
 
-.sphere-tooltip strong {
+.sphere-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
-  font-weight: 700;
-  margin-bottom: 2px;
+  pointer-events: none;
+  border-radius: 50%;
 }
+
+/* ── Spotlight Modal ───────────────────────────────────── */
+.sphere-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(44,26,26,0.45);
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+  animation: sfadeIn 0.25s ease;
+}
+
+.sphere-modal-overlay.open {
+  display: flex;
+}
+
+@keyframes sfadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sscaleIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+
+.sphere-modal-card {
+  position: relative;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 24px 64px rgba(44,26,26,0.32);
+  animation: sscaleIn 0.28s cubic-bezier(.34,1.56,.64,1);
+}
+
+.sphere-modal-card img {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  display: block;
+}
+
+.sphere-modal-body {
+  padding: 20px 24px 24px;
+}
+
+.sphere-modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  color: var(--wine);
+  margin-bottom: 6px;
+}
+
+.sphere-modal-desc {
+  color: var(--faded);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.sphere-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(44,26,26,0.55);
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 1;
+}
+
+.sphere-modal-close:hover { background: var(--wine); }

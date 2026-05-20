@@ -1,355 +1,362 @@
-// ── Sphere Image Gallery ────────────────────────────────────────────────────
-// Renders uploaded memories as a rotating 3D sphere of polaroid-style images
-// using the Canvas 2D API — no external dependencies needed.
-
+// ============================================================
+//  Sphere Image Gallery — vanilla JS port of Joly UI's
+//  SphereImageGrid (CSS 3D transforms + spring physics)
+//  Integrates with the Love Diary memories API.
+// ============================================================
 (function () {
-  // ── Config ────────────────────────────────────────────────────────────────
-  const SPHERE_R      = 200;   // logical sphere radius (px)
-  const IMG_SIZE      = 56;    // image tile size on canvas (px)
-  const AUTO_SPEED    = 0.004; // radians per frame (auto rotation)
-  const DRAG_FRICTION = 0.94;  // velocity decay when released
-  const MIN_ALPHA     = 0.18;  // dimmest tile opacity (back of sphere)
-  const MAX_SCALE     = 1.0;   // largest tile scale (front of sphere)
-  const MIN_SCALE     = 0.38;  // smallest tile scale (back)
-  const BORDER        = 3;     // polaroid-style white border (px)
+  'use strict';
 
-  // ── State ─────────────────────────────────────────────────────────────────
-  let canvas, ctx, tooltip;
-  let points    = [];   // { phi, theta, img, loaded, title, desc }
-  let angleY    = 0;    // current Y rotation (radians)
-  let angleX    = 0.35; // slight tilt so sphere doesn't look flat
-  let velY      = 0;    // drag velocity
-  let dragging  = false;
-  let lastX     = 0;
-  let rafId     = null;
-  let memories  = [];
-  let sphereActive = false;
+  // ── Config ────────────────────────────────────────────────
+  const CFG = {
+    containerSize:   420,
+    sphereRadius:    175,
+    dragSensitivity: 0.5,
+    momentumDecay:   0.95,
+    maxRotSpeed:     5,
+    baseImageScale:  0.13,   // fraction of containerSize
+    hoverScale:      1.25,
+    perspective:     1000,
+    autoRotate:      true,
+    autoRotateSpeed: 0.35,   // deg/frame
+  };
 
-  // ── Fibonacci sphere distribution ────────────────────────────────────────
-  // Places N points evenly on a sphere using golden-angle method.
-  function fibonacciSphere(n) {
-    const pts = [];
-    const golden = Math.PI * (3 - Math.sqrt(5));
+  // ── State ─────────────────────────────────────────────────
+  let rotation   = { x: 15, y: 15 };
+  let velocity   = { x: 0,  y: 0  };
+  let isDragging = false;
+  let lastMouse  = { x: 0,  y: 0  };
+  let rafId      = null;
+  let images     = [];        // { id, src, alt, title, description }
+  let positions  = [];        // SphericalPosition[]
+  let hoveredIdx = null;
+  let sphereEl   = null;
+  let isActive   = false;
+
+  // ── Math helpers ──────────────────────────────────────────
+  const toRad = d => d * Math.PI / 180;
+  const normalizeAngle = a => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
+  const clamp = (v, mn, mx) => Math.max(mn, Math.min(mx, v));
+
+  // ── Fibonacci sphere distribution ─────────────────────────
+  function generatePositions(n) {
+    const golden = (1 + Math.sqrt(5)) / 2;
+    const inc    = 2 * Math.PI / golden;
+    const pts    = [];
     for (let i = 0; i < n; i++) {
-      const y     = 1 - (i / (n - 1)) * 2;           // -1 to 1
-      const r     = Math.sqrt(1 - y * y);
-      const theta = golden * i;
-      pts.push({
-        phi:   Math.asin(y),                           // latitude
-        theta: theta,                                  // longitude
-        rawX:  r * Math.cos(theta),
-        rawY:  y,
-        rawZ:  r * Math.sin(theta),
-      });
+      const t    = i / n;
+      let phi    = Math.acos(1 - 2 * t) * 180 / Math.PI;  // 0..180
+      let theta  = ((inc * i) * 180 / Math.PI) % 360;
+
+      // Push slightly toward poles for full coverage
+      const poleBoost = (Math.abs(phi - 90) / 90) ** 0.6 * 35;
+      phi = phi < 90 ? Math.max(5,   phi - poleBoost)
+                     : Math.min(175, phi + poleBoost);
+      phi   = 15 + (phi / 180) * 150;
+      theta = (theta + (Math.random() - 0.5) * 20 + 360) % 360;
+      phi   = clamp(phi + (Math.random() - 0.5) * 10, 0, 180);
+
+      pts.push({ theta, phi, radius: CFG.sphereRadius });
     }
     return pts;
   }
 
-  // ── Build point list from memories ───────────────────────────────────────
-  function buildPoints(mems) {
-    // Use memories that have an image; fall back to placeholder hearts if < 6
-    const withImg = mems.filter(m => m.image);
-    let items = withImg.length >= 6 ? withImg : withImg;
+  // ── World-position calculation (matches Joly UI logic) ────
+  function calcWorldPositions() {
+    const R         = CFG.sphereRadius;
+    const baseSize  = CFG.containerSize * CFG.baseImageScale;
+    const rotXRad   = toRad(rotation.x);
+    const rotYRad   = toRad(rotation.y);
+    const fadeStart = -10, fadeEnd = -30;
 
-    // If no memories yet, show placeholder tiles
-    if (items.length === 0) {
-      items = Array.from({ length: 16 }, (_, i) => ({
-        id: i, image: null,
-        title: `Kỷ niệm ${i + 1}`,
-        description: 'Thêm ảnh để hiện ở đây ♥'
-      }));
-    }
+    const raw = positions.map((pos, idx) => {
+      const tRad = toRad(pos.theta), pRad = toRad(pos.phi);
+      let x = R * Math.sin(pRad) * Math.cos(tRad);
+      let y = R * Math.cos(pRad);
+      let z = R * Math.sin(pRad) * Math.sin(tRad);
 
-    // Ensure we have enough points for a nice sphere (duplicate if needed)
-    while (items.length < 14) items = [...items, ...items];
-    items = items.slice(0, Math.max(items.length, 16));
+      // Y-axis rotation (horizontal drag)
+      const x1 =  x * Math.cos(rotYRad) + z * Math.sin(rotYRad);
+      const z1 = -x * Math.sin(rotYRad) + z * Math.cos(rotYRad);
+      x = x1; z = z1;
 
-    const fibPts = fibonacciSphere(items.length);
+      // X-axis rotation (vertical drag)
+      const y2 = y * Math.cos(rotXRad) - z * Math.sin(rotXRad);
+      const z2 = y * Math.sin(rotXRad) + z * Math.cos(rotXRad);
+      y = y2; z = z2;
 
-    points = fibPts.map((fp, i) => {
-      const mem = items[i % items.length];
-      const pt  = {
-        phi:   fp.phi,
-        theta: fp.theta,
-        rawX:  fp.rawX,
-        rawY:  fp.rawY,
-        rawZ:  fp.rawZ,
-        title: mem.title || '',
-        desc:  mem.description || '',
-        img:   null,
-        loaded:false,
-        placeholder: !mem.image,
-        color: randomPastel(),
-      };
+      const isVisible  = z > fadeEnd;
+      const fadeOpacity = z <= fadeStart
+        ? Math.max(0, (z - fadeEnd) / (fadeStart - fadeEnd))
+        : 1;
 
-      if (mem.image) {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload  = () => { pt.img = img; pt.loaded = true; };
-        img.onerror = () => { pt.placeholder = true; };
-        img.src = mem.image;
+      const distXY = Math.sqrt(x * x + y * y) / R;
+      const isPole = pos.phi < 30 || pos.phi > 150;
+      const distPenalty = isPole ? 0.4 : 0.7;
+      const centerScale = Math.max(0.3, 1 - distXY * distPenalty);
+      const depthScale  = (z + R) / (2 * R);
+      const scale = centerScale * Math.max(0.5, 0.8 + depthScale * 0.3);
+
+      return { x, y, z, scale, zIndex: Math.round(1000 + z), isVisible, fadeOpacity, idx };
+    });
+
+    // Collision-based scale reduction
+    const adjusted = raw.map(p => ({ ...p }));
+    for (let i = 0; i < adjusted.length; i++) {
+      if (!adjusted[i].isVisible) continue;
+      let s = adjusted[i].scale;
+      const si = baseSize * s;
+      for (let j = 0; j < adjusted.length; j++) {
+        if (i === j || !adjusted[j].isVisible) continue;
+        const sj = baseSize * adjusted[j].scale;
+        const dx = adjusted[i].x - adjusted[j].x;
+        const dy = adjusted[i].y - adjusted[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minD = (si + sj) / 2 + 25;
+        if (dist < minD && dist > 0) {
+          const ovlp = minD - dist;
+          s = Math.min(s, s * Math.max(0.4, 1 - (ovlp / minD) * 0.6));
+        }
       }
-      return pt;
+      adjusted[i].scale = Math.max(0.25, s);
+    }
+    return adjusted;
+  }
+
+  // ── DOM: build tile elements ──────────────────────────────
+  function buildTiles() {
+    sphereEl.innerHTML = '';
+    images.forEach((img, i) => {
+      const tile = document.createElement('div');
+      tile.className     = 'sphere-tile';
+      tile.dataset.index = i;
+
+      const inner = document.createElement('div');
+      inner.className = 'sphere-tile-inner';
+
+      const imgEl = document.createElement('img');
+      imgEl.src           = img.src;
+      imgEl.alt           = img.alt || img.title || '';
+      imgEl.draggable     = false;
+      imgEl.loading       = i < 4 ? 'eager' : 'lazy';
+      imgEl.crossOrigin   = 'anonymous';
+
+      inner.appendChild(imgEl);
+      tile.appendChild(inner);
+      sphereEl.appendChild(tile);
+
+      // Hover
+      tile.addEventListener('mouseenter', () => { hoveredIdx = i; });
+      tile.addEventListener('mouseleave', () => { hoveredIdx = null; });
+
+      // Click → modal
+      tile.addEventListener('click', (e) => {
+        if (isDragging) return;
+        e.stopPropagation();
+        openSphereModal(img);
+      });
     });
   }
 
-  function randomPastel() {
-    const hues = [0, 20, 340, 350, 15, 330];
-    const h = hues[Math.floor(Math.random() * hues.length)];
-    return `hsl(${h}, 55%, 88%)`;
-  }
-
-  // ── 3D → 2D projection ───────────────────────────────────────────────────
-  function project(rawX, rawY, rawZ) {
-    // Rotate around X axis (tilt)
-    const cosX = Math.cos(angleX), sinX = Math.sin(angleX);
-    const y1 = rawY * cosX - rawZ * sinX;
-    const z1 = rawY * sinX + rawZ * cosX;
-
-    // Rotate around Y axis (spin)
-    const cosY = Math.cos(angleY), sinY = Math.sin(angleY);
-    const x2 = rawX * cosY + z1 * sinY;
-    const z2 = -rawX * sinY + z1 * cosY;
-
-    // Simple perspective
-    const perspective = SPHERE_R * 1.6;
-    const scale = perspective / (perspective + z2 * SPHERE_R);
-
-    return {
-      sx:    x2 * SPHERE_R * scale,
-      sy:    y1 * SPHERE_R * scale,
-      depth: z2,           // -1 (back) to 1 (front)
-      scale: scale,
-    };
-  }
-
-  // ── Draw one tile ─────────────────────────────────────────────────────────
-  function drawTile(pt, px, py, depth, scale) {
-    const s     = IMG_SIZE * scale * (MIN_SCALE + (1 - MIN_SCALE) * ((depth + 1) / 2));
-    const alpha = MIN_ALPHA + (1 - MIN_ALPHA) * ((depth + 1) / 2);
-    const half  = s / 2;
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(px, py);
-
-    // Slight tilt per tile for polaroid feel
-    const tilt = (pt.rawX * 0.18 + pt.rawZ * 0.12);
-    ctx.rotate(tilt);
-
-    // Shadow
-    ctx.shadowColor   = 'rgba(44,26,26,0.22)';
-    ctx.shadowBlur    = 8 * scale;
-    ctx.shadowOffsetX = 2 * scale;
-    ctx.shadowOffsetY = 3 * scale;
-
-    // White polaroid border
-    const brd = BORDER * scale;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.roundRect(-half - brd, -half - brd, s + brd * 2, s + brd * 2 + brd * 3, 2 * scale);
-    ctx.fill();
-
-    ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
-
-    // Image or placeholder
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(-half, -half, s, s, 1.5 * scale);
-    ctx.clip();
-
-    if (pt.loaded && pt.img) {
-      ctx.drawImage(pt.img, -half, -half, s, s);
-    } else {
-      // Pastel placeholder
-      ctx.fillStyle = pt.color;
-      ctx.fillRect(-half, -half, s, s);
-      ctx.fillStyle = 'rgba(139,58,74,0.35)';
-      ctx.font      = `${s * 0.4}px serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('♥', 0, 0);
-    }
-    ctx.restore();
-
-    ctx.restore();
-  }
-
-  // ── Main render loop ──────────────────────────────────────────────────────
+  // ── Render frame ─────────────────────────────────────────
   function render() {
-    if (!sphereActive) return;
+    if (!isActive) return;
 
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-
-    // Auto rotate
-    if (!dragging) {
-      angleY += AUTO_SPEED + velY;
-      velY   *= DRAG_FRICTION;
+    // Momentum + auto-rotate
+    if (!isDragging) {
+      velocity.x *= CFG.momentumDecay;
+      velocity.y *= CFG.momentumDecay;
+      if (CFG.autoRotate) velocity.y += CFG.autoRotateSpeed;
+      rotation.x = normalizeAngle(rotation.x + clamp(velocity.x, -CFG.maxRotSpeed, CFG.maxRotSpeed));
+      rotation.y = normalizeAngle(rotation.y + clamp(velocity.y, -CFG.maxRotSpeed, CFG.maxRotSpeed));
     }
 
-    const cx = W / 2, cy = H / 2;
+    const world    = calcWorldPositions();
+    const tiles    = sphereEl.querySelectorAll('.sphere-tile');
+    const half     = CFG.containerSize / 2;
+    const baseSize = CFG.containerSize * CFG.baseImageScale;
 
-    // Project all points
-    const projected = points.map(pt => {
-      const { sx, sy, depth, scale } = project(pt.rawX, pt.rawY, pt.rawZ);
-      return { pt, px: cx + sx, py: cy + sy, depth, scale };
-    });
+    tiles.forEach((tile, i) => {
+      const wp = world[i];
+      if (!wp || !wp.isVisible) {
+        tile.style.opacity = '0';
+        tile.style.pointerEvents = 'none';
+        return;
+      }
+      const sz          = baseSize * wp.scale;
+      const isHov       = hoveredIdx === i;
+      const hoverFactor = isHov ? Math.min(CFG.hoverScale, CFG.hoverScale / wp.scale) : 1;
 
-    // Sort back-to-front so front tiles draw on top
-    projected.sort((a, b) => a.depth - b.depth);
-    projected.forEach(({ pt, px, py, depth, scale }) => {
-      drawTile(pt, px, py, depth, scale);
+      tile.style.cssText = `
+        position: absolute;
+        width:  ${sz}px;
+        height: ${sz}px;
+        left:   ${half + wp.x}px;
+        top:    ${half + wp.y}px;
+        opacity: ${wp.fadeOpacity};
+        z-index: ${wp.zIndex};
+        transform: translate(-50%,-50%) scale(${hoverFactor});
+        transition: transform 0.2s ease-out;
+        pointer-events: auto;
+        cursor: pointer;
+      `;
     });
 
     rafId = requestAnimationFrame(render);
   }
 
-  // ── Tooltip on hover ─────────────────────────────────────────────────────
-  function hitTest(mx, my) {
-    const cx = canvas.width / 2, cy = canvas.height / 2;
-    let best = null, bestDist = Infinity;
-
-    points.forEach(pt => {
-      const { sx, sy, depth } = project(pt.rawX, pt.rawY, pt.rawZ);
-      const px = cx + sx, py = cy + sy;
-      const s  = IMG_SIZE * MAX_SCALE * (MIN_SCALE + (1 - MIN_SCALE) * ((depth + 1) / 2));
-      const dist = Math.hypot(mx - px, my - py);
-      if (dist < s * 0.7 && dist < bestDist && depth > -0.1) {
-        bestDist = dist;
-        best = { pt, px, py };
-      }
-    });
-    return best;
+  // ── Modal ─────────────────────────────────────────────────
+  function openSphereModal(img) {
+    document.getElementById('sphereModalImg').src   = img.src;
+    document.getElementById('sphereModalImg').alt   = img.alt || '';
+    document.getElementById('sphereModalTitle').textContent = img.title || '';
+    document.getElementById('sphereModalDesc').textContent  = img.description || '';
+    const m = document.getElementById('sphereModal');
+    m.classList.add('open');
+    document.body.style.overflow = 'hidden';
   }
 
-  // ── Drag interaction ──────────────────────────────────────────────────────
-  function onMouseDown(e) {
-    dragging = true;
-    lastX    = e.clientX || e.touches?.[0]?.clientX;
-    velY     = 0;
-    tooltip.style.opacity = '0';
+  window.closeSphereModal = function () {
+    document.getElementById('sphereModal').classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  // Keyboard close
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') window.closeSphereModal();
+  });
+
+  // ── Drag / touch ─────────────────────────────────────────
+  function onDragStart(e) {
+    isDragging = true;
+    velocity   = { x: 0, y: 0 };
+    const src  = e.touches ? e.touches[0] : e;
+    lastMouse  = { x: src.clientX, y: src.clientY };
+    if (sphereEl) sphereEl.style.cursor = 'grabbing';
+    e.preventDefault();
   }
 
-  function onMouseMove(e) {
-    const clientX = e.clientX ?? e.touches?.[0]?.clientX;
-    const clientY = e.clientY ?? e.touches?.[0]?.clientY;
-
-    if (dragging && clientX != null) {
-      const dx = clientX - lastX;
-      velY      = dx * 0.01;
-      angleY   += velY;
-      lastX     = clientX;
-      return;
-    }
-
-    // Hover tooltip (mouse only)
-    if (e.touches) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx   = clientX - rect.left;
-    const my   = clientY - rect.top;
-    const hit  = hitTest(mx, my);
-
-    if (hit) {
-      tooltip.style.opacity = '1';
-      tooltip.style.left    = (rect.left + hit.px + 36) + 'px';
-      tooltip.style.top     = (rect.top  + hit.py - 20) + 'px';
-      tooltip.innerHTML     = `<strong>${hit.pt.title}</strong>${hit.pt.desc ? '<br>' + hit.pt.desc : ''}`;
-      canvas.style.cursor   = 'pointer';
-    } else {
-      tooltip.style.opacity = '0';
-      canvas.style.cursor   = 'grab';
-    }
+  function onDragMove(e) {
+    if (!isDragging) return;
+    const src  = e.touches ? e.touches[0] : e;
+    const dx   = src.clientX - lastMouse.x;
+    const dy   = src.clientY - lastMouse.y;
+    const vx   = clamp(-dy * CFG.dragSensitivity, -CFG.maxRotSpeed, CFG.maxRotSpeed);
+    const vy   = clamp( dx * CFG.dragSensitivity, -CFG.maxRotSpeed, CFG.maxRotSpeed);
+    rotation.x = normalizeAngle(rotation.x + vx);
+    rotation.y = normalizeAngle(rotation.y + vy);
+    velocity   = { x: vx, y: vy };
+    lastMouse  = { x: src.clientX, y: src.clientY };
+    e.preventDefault();
   }
 
-  function onMouseUp() {
-    dragging = false;
+  function onDragEnd() {
+    isDragging = false;
+    if (sphereEl) sphereEl.style.cursor = 'grab';
   }
 
-  // ── Init / teardown ───────────────────────────────────────────────────────
+  // ── Init / teardown ───────────────────────────────────────
   function initSphere() {
-    canvas  = document.getElementById('sphereCanvas');
-    tooltip = document.getElementById('sphereTooltip');
-    if (!canvas) return;
+    sphereEl = document.getElementById('sphereContainer');
+    if (!sphereEl) return;
 
-    ctx = canvas.getContext('2d');
-
-    // Size canvas to its CSS container
-    function resize() {
-      const wrapper = canvas.parentElement;
-      const size    = Math.min(wrapper.offsetWidth, 500);
-      canvas.width  = size;
-      canvas.height = size;
+    // Set container size via JS so CSS vars match
+    const outer = document.querySelector('.sphere-outer');
+    if (outer) {
+      outer.style.width  = CFG.containerSize + 'px';
+      outer.style.height = CFG.containerSize + 'px';
     }
-    resize();
-    window.addEventListener('resize', resize);
+    sphereEl.style.width       = CFG.containerSize + 'px';
+    sphereEl.style.height      = CFG.containerSize + 'px';
+    sphereEl.style.perspective = CFG.perspective + 'px';
+    sphereEl.style.cursor      = 'grab';
 
-    // Fetch memories and build sphere
+    // Load memories from API
     fetch('/memories')
       .then(r => r.json())
       .then(mems => {
-        memories = mems;
-        buildPoints(mems);
+        // Keep only memories that have images
+        const withImg = mems.filter(m => m.image);
+        // If fewer than 6 images, pad with Unsplash placeholders
+        images = withImg.map(m => ({
+          id:          String(m.id),
+          src:         m.image,
+          alt:         m.title || '',
+          title:       m.title || '',
+          description: m.description || '',
+        }));
+
+        if (images.length < 6) {
+          const pads = [
+            'photo-1535713875002-d1d0cf377fde','photo-1494790108377-be9c29b29330',
+            'photo-1507003211169-0a1dd7228f2d','photo-1438761681033-6461ffad8d80',
+            'photo-1472099645785-5658abf4ff4e','photo-1544005313-94ddf0286df2',
+            'photo-1500648767791-00dcc994a43e','photo-1534528741775-53994a69daeb',
+          ];
+          pads.forEach((p, i) => {
+            if (images.length >= 10) return;
+            images.push({
+              id: 'pad' + i,
+              src: `https://images.unsplash.com/${p}?w=150&h=150&fit=crop`,
+              alt: 'Kỷ niệm', title: 'Kỷ niệm ♥', description: 'Thêm ảnh để hiện ở đây',
+            });
+          });
+        }
+
+        positions = generatePositions(images.length);
+        buildTiles();
+        isActive = true;
+        render();
       })
-      .catch(() => buildPoints([]));
+      .catch(() => {
+        // Fallback: all placeholders
+        images = Array.from({ length: 10 }, (_, i) => ({
+          id: 'p' + i,
+          src: `https://picsum.photos/seed/${i + 42}/150/150`,
+          alt: 'Ảnh ' + (i + 1), title: 'Kỷ niệm ' + (i + 1), description: '',
+        }));
+        positions = generatePositions(images.length);
+        buildTiles();
+        isActive = true;
+        render();
+      });
 
     // Events
-    canvas.addEventListener('mousedown',  onMouseDown);
-    canvas.addEventListener('touchstart', onMouseDown, { passive: true });
-    window.addEventListener('mousemove',  onMouseMove);
-    window.addEventListener('touchmove',  onMouseMove, { passive: true });
-    window.addEventListener('mouseup',    onMouseUp);
-    window.addEventListener('touchend',   onMouseUp);
-
-    sphereActive = true;
-    render();
+    sphereEl.addEventListener('mousedown',  onDragStart);
+    sphereEl.addEventListener('touchstart', onDragStart, { passive: false });
+    document.addEventListener('mousemove',  onDragMove);
+    document.addEventListener('touchmove',  onDragMove, { passive: false });
+    document.addEventListener('mouseup',    onDragEnd);
+    document.addEventListener('touchend',   onDragEnd);
   }
 
   function destroySphere() {
-    sphereActive = false;
-    if (rafId) cancelAnimationFrame(rafId);
+    isActive = false;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    sphereEl?.removeEventListener('mousedown',  onDragStart);
+    sphereEl?.removeEventListener('touchstart', onDragStart);
+    document.removeEventListener('mousemove',  onDragMove);
+    document.removeEventListener('touchmove',  onDragMove);
+    document.removeEventListener('mouseup',    onDragEnd);
+    document.removeEventListener('touchend',   onDragEnd);
+    if (sphereEl) sphereEl.innerHTML = '';
   }
 
-  // ── Hook into switchTab ───────────────────────────────────────────────────
-  // Patch the existing switchTab function to show/hide gallery page
-  const _origSwitchTab = window.switchTab;
+  // ── Hook into switchTab ───────────────────────────────────
+  const _orig = window.switchTab;
   window.switchTab = function (tab) {
-    // Handle gallery tab manually since original code doesn't know about it
+    // Always deactivate gallery first
     document.getElementById('pageGallery').style.display = 'none';
     document.getElementById('tabGallery').classList.remove('active');
+    destroySphere();
 
     if (tab === 'gallery') {
-      // Hide other pages
-      document.getElementById('pagePhotos').style.display = 'none';
-      document.getElementById('pageVideos').style.display = 'none';
-      document.getElementById('tabPhotos').classList.remove('active');
-      document.getElementById('tabVideos').classList.remove('active');
-      // Show gallery
+      ['pagePhotos','pageVideos'].forEach(id => document.getElementById(id).style.display = 'none');
+      ['tabPhotos','tabVideos'].forEach(id =>  document.getElementById(id).classList.remove('active'));
       document.getElementById('pageGallery').style.display = 'block';
       document.getElementById('tabGallery').classList.add('active');
-
-      if (!sphereActive) initSphere();
-      else { sphereActive = true; render(); }
+      initSphere();
     } else {
-      destroySphere();
-      _origSwitchTab(tab);
+      _orig(tab);
     }
   };
-
-  // ── Canvas polyfill for roundRect (Safari < 15.4) ────────────────────────
-  if (!CanvasRenderingContext2D.prototype.roundRect) {
-    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-      r = Math.min(r, w / 2, h / 2);
-      this.moveTo(x + r, y);
-      this.lineTo(x + w - r, y);
-      this.quadraticCurveTo(x + w, y, x + w, y + r);
-      this.lineTo(x + w, y + h - r);
-      this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      this.lineTo(x + r, y + h);
-      this.quadraticCurveTo(x, y + h, x, y + h - r);
-      this.lineTo(x, y + r);
-      this.quadraticCurveTo(x, y, x + r, y);
-      this.closePath();
-    };
-  }
 })();
