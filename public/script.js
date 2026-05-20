@@ -249,27 +249,6 @@ socket.on("memoryMoved", (data) => {
   card.style.transform = `rotate(${data.rotate}deg)`;
 });
 
-// ── REALTIME DELETE ──────────────────────────────────
-socket.on("memoryDeleted", (data) => {
-  const card = document.querySelector(`.memory-card[data-id="${data.id}"]`);
-  if (!card) return;
-  delete positions[data.id];
-  card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
-  card.style.opacity    = "0";
-  card.style.transform  = (card.style.transform || "") + " scale(0.85)";
-  setTimeout(() => card.remove(), 420);
-});
-
-socket.on("videoDeleted", (data) => {
-  const card = document.querySelector(`.video-card[data-id="${data.id}"]`);
-  if (!card) return;
-  delete videoPositions[data.id];
-  card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
-  card.style.opacity    = "0";
-  card.style.transform  = (card.style.transform || "") + " scale(0.85)";
-  setTimeout(() => card.remove(), 420);
-});
-
 socket.on("videoMoved", (data) => {
   const cards = document.querySelectorAll(".video-card");
 
@@ -297,6 +276,30 @@ socket.on("videoMoved", (data) => {
   target.style.left = data.x + "px";
   target.style.top = data.y + "px";
   target.style.transform = `rotate(${data.rotate}deg)`;
+});
+
+socket.on("memoryDeleted", (data) => {
+  const card = document.querySelector(`.memory-card[data-id="${data.id}"]`);
+  if (!card) return;
+  delete positions[data.id];
+  card.style.transition = "all 0.35s ease";
+  card.style.opacity = "0";
+  card.style.transform += " scale(0.85)";
+  setTimeout(() => card.remove(), 360);
+});
+
+socket.on("videoDeleted", (data) => {
+  const cards = document.querySelectorAll(".video-card");
+  cards.forEach((c) => {
+    const btn = c.querySelector(".delete-btn");
+    if (btn && btn.getAttribute("onclick")?.includes(`(${data.id})`)) {
+      delete videoPositions[data.id];
+      c.style.transition = "all 0.35s ease";
+      c.style.opacity = "0";
+      c.style.transform += " scale(0.85)";
+      setTimeout(() => c.remove(), 360);
+    }
+  });
 });
 // ── Load Memories ──────────────────────────────────────
 async function loadMemories() {
@@ -496,6 +499,7 @@ async function deleteMemory(id) {
   if (result.isConfirmed) {
     delete positions[id];
     await fetch(`${API_URL}/${id}`, { method:"DELETE" });
+    socket.emit("deleteMemory", { id });
     loadMemories();
     Swal.fire({ title:"Đã xoá!", text:"Kỷ niệm đã được xoá.", icon:"success" });
   }
@@ -574,6 +578,7 @@ async function deleteVideo(id) {
   if (result.isConfirmed) {
     delete videoPositions[id];
     await fetch(`${VIDEO_API_URL}/${id}`, { method:"DELETE" });
+    socket.emit("deleteVideo", { id });
     loadVideos();
     Swal.fire({ title:"Đã xoá!", text:"Video đã được xoá.", icon:"success" });
   }

@@ -36,6 +36,14 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("videoMoved", data);
   });
 
+  socket.on("deleteMemory", (data) => {
+    socket.broadcast.emit("memoryDeleted", data);
+  });
+
+  socket.on("deleteVideo", (data) => {
+    socket.broadcast.emit("videoDeleted", data);
+  });
+
   socket.on("disconnect", () => {
 
     console.log("🔴 User disconnected");
@@ -336,9 +344,6 @@ app.delete("/memories/:id", (req, res) => {
           res.json({
             success: true
           });
-
-          // Broadcast realtime delete to all clients
-          io.emit("memoryDeleted", { id: parseInt(id) });
         }
       );
     }
@@ -543,9 +548,6 @@ app.delete("/videos/:id", (req, res) => {
           res.json({
             success: true
           });
-
-          // Broadcast realtime delete to all clients
-          io.emit("videoDeleted", { id: parseInt(id) });
         }
       );
     }

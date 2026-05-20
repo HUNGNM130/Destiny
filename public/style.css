@@ -18,7 +18,6 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c8707a' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   min-height: 100vh;
   color: var(--ink);
-  padding-bottom: 120px;
 }
 
 /* ── Header ────────────────────────────────────────── */
@@ -52,82 +51,88 @@ header p {
   margin-top: 8px;
 }
 
-/* ── Dock Navigation (Joly UI style) ────────────────── */
-.dock-nav {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9900;
-  pointer-events: auto;
+/* ── Dock Nav (macOS-style, replaces old tab-toggle) ───── */
+.tab-toggle {
+  display: none; /* hidden — replaced by dock */
 }
-.dock-inner {
+
+/* ── Dock ────────────────────────────────────────────── */
+.dock-wrap {
   display: flex;
+  justify-content: center;
+  margin-top: 28px;
+  padding-bottom: 8px;
+}
+
+.dock {
+  display: inline-flex;
   align-items: flex-end;
   gap: 10px;
-  background: rgba(253,246,236,0.82);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1.5px solid rgba(200,112,122,0.18);
-  border-radius: 24px;
-  padding: 10px 16px 12px;
-  box-shadow: 0 8px 40px rgba(44,26,26,0.18), 0 2px 8px rgba(200,112,122,0.1);
+  padding: 8px 16px 10px;
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(200,112,122,0.22);
+  border-radius: 22px;
+  box-shadow: 0 8px 32px rgba(139,58,74,0.13), 0 2px 8px rgba(44,26,26,0.08);
 }
+
 .dock-item {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  border: none;
-  background: transparent;
   cursor: pointer;
-  padding: 0;
-  transform-origin: bottom center;
-  transform: scale(var(--scale, 1));
-  transition: transform 0.18s cubic-bezier(.34,1.56,.64,1);
-  will-change: transform;
+  /* JS sets width/height via inline style for magnification */
 }
-.dock-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: var(--warm);
+
+.dock-icon-box {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.7rem;
-  box-shadow: 0 2px 10px rgba(44,26,26,0.12);
-  border: 1.5px solid rgba(200,112,122,0.15);
-  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
+  border-radius: 14px;
+  font-size: 1.5rem;
+  background: var(--warm);
+  color: var(--wine);
+  transition: background 0.18s, color 0.18s;
+  box-shadow: 0 2px 8px rgba(139,58,74,0.1);
+  border: none;
+  outline: none;
+  padding: 0;
+  will-change: width, height;
 }
-.dock-item.active .dock-icon {
+
+.dock-item.active .dock-icon-box {
   background: var(--wine);
-  border-color: var(--wine);
-  box-shadow: 0 4px 18px rgba(139,58,74,0.38);
-  filter: brightness(1.08);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(139,58,74,0.35);
 }
-.dock-item:not(.active):hover .dock-icon {
+
+.dock-item:not(.active):hover .dock-icon-box {
   background: var(--blush);
-  border-color: var(--rose);
 }
+
 .dock-label {
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 10px);
   left: 50%;
   transform: translateX(-50%);
-  background: var(--wine);
+  background: var(--ink);
   color: #fff;
   font-size: 0.78rem;
   white-space: nowrap;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: 6px;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.18s ease;
-  letter-spacing: 0.3px;
-  box-shadow: 0 2px 8px rgba(139,58,74,0.25);
+  transition: opacity 0.15s;
+  font-family: 'Lora', serif;
+  letter-spacing: 0.02em;
+  z-index: 100;
 }
+
 .dock-label::after {
   content: '';
   position: absolute;
@@ -135,49 +140,22 @@ header p {
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: var(--wine);
+  border-top-color: var(--ink);
 }
 
-/* ── Morphing Cursor ─────────────────────────────────── */
-.love-title {
-  cursor: default;
-  position: relative;
-  display: inline-block;
-}
-.morph-cursor {
-  position: fixed;
-  pointer-events: none;
-  z-index: 99999;
-  transform: translate(-50%, -120%);
-  opacity: 0;
-  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(.34,1.56,.64,1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: var(--wine);
-  color: #fff;
-  border-radius: 20px;
-  padding: 10px 20px 8px;
-  white-space: nowrap;
-  box-shadow: 0 8px 32px rgba(139,58,74,0.35);
-  gap: 2px;
-}
-.morph-cursor.visible {
+.dock-item:hover .dock-label {
   opacity: 1;
-  transform: translate(-50%, -130%);
 }
-.morph-days {
-  font-family: 'Playfair Display', serif;
-  font-size: 2rem;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -1px;
+
+.dock-separator {
+  width: 1.5px;
+  height: 28px;
+  background: var(--blush);
+  border-radius: 2px;
+  align-self: center;
+  margin: 0 2px;
 }
-.morph-label {
-  font-size: 0.78rem;
-  opacity: 0.88;
-  letter-spacing: 0.5px;
-}
+
 
 /* ── Add Button ────────────────────────────────────── */
 .btn-add {
