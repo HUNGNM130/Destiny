@@ -282,7 +282,7 @@ socket.on("memoryMoved", (data) => {
   };
 
   card.style.transition = "none";
-  updateCardPosition(card, pos.x, pos.y, pos.rotate);
+  updateCardPosition(card, data.x, data.y, data.rotate);
 });
 
 socket.on("videoMoved", (data) => {
@@ -339,9 +339,9 @@ async function loadMemories() {
       if (memory.pos_x == null) savePosition(memory.id);
       updateCardPosition(
   card,
-  data.x,
-  data.y,
-  data.rotate
+  pos.x,
+  pos.y,
+  pos.rotate
 );
       card.style.zIndex    = 1;
       const d       = new Date(memory.date);
