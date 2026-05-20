@@ -447,7 +447,7 @@ if (!filename) {
   success: true
 });
 
-io.emit("videoDeleted");
+io.emit("videoAdded");
       }
     );
   }
