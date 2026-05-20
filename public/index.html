@@ -19,6 +19,7 @@
     <div class="tab-toggle">
       <button class="tab-btn active" id="tabPhotos" onclick="switchTab('photos')">📷 Kỷ niệm</button>
       <button class="tab-btn" id="tabVideos" onclick="switchTab('videos')">🎬 Video</button>
+      <button class="tab-btn" id="tabGallery" onclick="switchTab('gallery')">✨ Tập chính</button>
     </div>
   </header>
 
@@ -35,6 +36,18 @@
     <button class="btn-add" onclick="openVideoForm()">Thêm video</button>
     <div id="videoContainer">
       <div class="loading">đang tải video... ♥</div>
+    </div>
+  </div>
+
+  <!-- Tab tập chính -->
+  <div id="pageGallery" style="display:none;">
+    <div class="gallery-header">
+      <h2 class="gallery-title">✨ Tập chính của chúng mình</h2>
+      <p class="gallery-subtitle">Những khoảnh khắc đẹp nhất ♥</p>
+    </div>
+    <div class="sphere-wrapper">
+      <canvas id="sphereCanvas"></canvas>
+      <div id="sphereTooltip" class="sphere-tooltip"></div>
     </div>
   </div>
 
@@ -122,5 +135,6 @@
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="script.js"></script>
   <script src="decorations.js"></script>
+  <script src="gallery.js"></script>
 </body>
 </html>
