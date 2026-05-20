@@ -230,31 +230,6 @@ function resetRotate() {
 }
 // ── SOCKET REALTIME ──────────────────────────
 
-// ── REALTIME: xoá & thêm ──────────────────────────────
-socket.on("memoryDeleted", (data) => {
-  const card = document.querySelector(`.memory-card[data-id="${data.id}"]`);
-  if (card) {
-    card.style.transition = "opacity 0.3s, transform 0.3s";
-    card.style.opacity = "0";
-    card.style.transform += " scale(0.85)";
-    setTimeout(() => card.remove(), 320);
-    delete positions[data.id];
-  }
-});
-socket.on("memoryAdded", () => { if (currentTab === "photos") loadMemories(); });
-
-socket.on("videoDeleted", (data) => {
-  const card = document.querySelector(`.video-card[data-id="${data.id}"]`);
-  if (card) {
-    card.style.transition = "opacity 0.3s, transform 0.3s";
-    card.style.opacity = "0";
-    card.style.transform += " scale(0.85)";
-    setTimeout(() => card.remove(), 320);
-    delete videoPositions[data.id];
-  }
-});
-socket.on("videoAdded", () => { if (currentTab === "videos") loadVideos(); });
-
 socket.on("memoryMoved", (data) => {
   const card = document.querySelector(
     `.memory-card[data-id="${data.id}"]`
@@ -301,6 +276,26 @@ socket.on("videoMoved", (data) => {
   target.style.left = data.x + "px";
   target.style.top = data.y + "px";
   target.style.transform = `rotate(${data.rotate}deg)`;
+});
+
+socket.on("memoryDeleted", (data) => {
+  const card = document.querySelector(`.memory-card[data-id="${data.id}"]`);
+  if (!card) return;
+  delete positions[data.id];
+  card.style.transition = "all 0.35s ease";
+  card.style.opacity = "0";
+  card.style.transform += " scale(0.85)";
+  setTimeout(() => card.remove(), 360);
+});
+
+socket.on("videoDeleted", (data) => {
+  const card = document.querySelector(`.video-card[data-id="${data.id}"]`);
+  if (!card) return;
+  delete videoPositions[data.id];
+  card.style.transition = "all 0.35s ease";
+  card.style.opacity = "0";
+  card.style.transform = (card.style.transform || "") + " scale(0.85)";
+  setTimeout(() => card.remove(), 360);
 });
 // ── Load Memories ──────────────────────────────────────
 async function loadMemories() {
@@ -480,7 +475,6 @@ async function saveMemory() {
       await fetch(`${API_URL}/${id}`, { method:"PUT", body:formData });
     } else {
       await fetch(API_URL, { method:"POST", body:formData });
-      socket.emit("memoryAdded", {});
     }
     closeForm();
     loadMemories();
@@ -499,11 +493,25 @@ async function deleteMemory(id) {
     reverseButtons: true
   });
   if (result.isConfirmed) {
+    // Xoá DOM ngay lập tức (không reload toàn bộ)
+    const card = document.querySelector(`.memory-card[data-id="${id}"]`);
+    if (card) {
+      card.style.transition = "all 0.35s ease";
+      card.style.opacity = "0";
+      card.style.transform = (card.style.transform || "") + " scale(0.85)";
+      setTimeout(() => card.remove(), 360);
+    }
     delete positions[id];
-    await fetch(`${API_URL}/${id}`, { method:"DELETE" });
-    socket.emit("deleteMemory", { id });
-    loadMemories();
-    Swal.fire({ title:"Đã xoá!", text:"Kỷ niệm đã được xoá.", icon:"success" });
+
+    // Xoá DB + broadcast cho máy khác
+    try {
+      await fetch(`${API_URL}/${id}`, { method:"DELETE" });
+      socket.emit("deleteMemory", { id });
+    } catch {
+      console.error("Delete failed");
+    }
+
+    Swal.fire({ title:"Đã xoá!", text:"Kỷ niệm đã được xoá.", icon:"success", timer: 1500, showConfirmButton: false });
   }
 }
 
@@ -560,7 +568,6 @@ async function saveVideo() {
     } else {
       if (!vf) { Swal.fire({ icon:"warning", title:"Chưa chọn video", text:"Vui lòng chọn file video nhé ♥" }); return; }
       await fetch(VIDEO_API_URL, { method:"POST", body:formData });
-      socket.emit("videoAdded", {});
     }
     closeVideoForm();
     loadVideos();
@@ -579,11 +586,25 @@ async function deleteVideo(id) {
     reverseButtons: true
   });
   if (result.isConfirmed) {
+    // Xoá DOM ngay lập tức (không reload toàn bộ)
+    const card = document.querySelector(`.video-card[data-id="${id}"]`);
+    if (card) {
+      card.style.transition = "all 0.35s ease";
+      card.style.opacity = "0";
+      card.style.transform = (card.style.transform || "") + " scale(0.85)";
+      setTimeout(() => card.remove(), 360);
+    }
     delete videoPositions[id];
-    await fetch(`${VIDEO_API_URL}/${id}`, { method:"DELETE" });
-    socket.emit("deleteVideo", { id });
-    loadVideos();
-    Swal.fire({ title:"Đã xoá!", text:"Video đã được xoá.", icon:"success" });
+
+    // Xoá DB + broadcast cho máy khác
+    try {
+      await fetch(`${VIDEO_API_URL}/${id}`, { method:"DELETE" });
+      socket.emit("deleteVideo", { id });
+    } catch {
+      console.error("Delete failed");
+    }
+
+    Swal.fire({ title:"Đã xoá!", text:"Video đã được xoá.", icon:"success", timer: 1500, showConfirmButton: false });
   }
 }
 

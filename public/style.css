@@ -51,33 +51,31 @@ header p {
   margin-top: 8px;
 }
 
-/* ── Tab Toggle (kept for compat) ──────────────────── */
-.tab-toggle { display: none; }
-
-/* ══════════════════════════════════════════════════════
-   DOCK NAV — Joly UI style
-   ══════════════════════════════════════════════════════ */
-.dock-nav {
-  display: flex;
-  justify-content: center;
-  margin-top: 28px;
-  margin-bottom: 4px;
+/* ── Dock Nav (macOS-style, replaces old tab-toggle) ───── */
+.tab-toggle {
+  display: none; /* hidden — replaced by dock */
 }
 
-.dock-track {
+/* ── Dock ────────────────────────────────────────────── */
+.dock-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  margin-bottom: 16px;
+  padding: 0 8px 0;
+}
+
+.dock {
   display: inline-flex;
   align-items: flex-end;
-  gap: 6px;
-  background: rgba(253,246,236,0.75);
-  backdrop-filter: blur(16px) saturate(1.6);
-  -webkit-backdrop-filter: blur(16px) saturate(1.6);
-  border: 1.5px solid rgba(200,112,122,0.18);
+  gap: 10px;
+  padding: 8px 16px 10px;
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(200,112,122,0.22);
   border-radius: 22px;
-  padding: 8px 14px;
-  box-shadow:
-    0 4px 24px rgba(139,58,74,0.13),
-    0 1.5px 6px rgba(139,58,74,0.08),
-    inset 0 1px 0 rgba(255,255,255,0.7);
+  box-shadow: 0 8px 32px rgba(139,58,74,0.13), 0 2px 8px rgba(44,26,26,0.08);
 }
 
 .dock-item {
@@ -85,202 +83,79 @@ header p {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  width: 52px;
-  height: 52px;
-  border: none;
-  background: transparent;
-  border-radius: 14px;
   cursor: pointer;
-  transition:
-    width        0.28s cubic-bezier(.34,1.56,.64,1),
-    height       0.28s cubic-bezier(.34,1.56,.64,1),
-    background   0.22s ease,
-    box-shadow   0.22s ease,
-    transform    0.22s cubic-bezier(.34,1.56,.64,1);
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
+  /* JS sets width/height via inline style for magnification */
 }
 
-/* Magnify neighbours */
-.dock-item:hover,
-.dock-item:focus-visible {
-  width:  60px;
-  height: 60px;
-  background: rgba(200,112,122,0.12);
-  box-shadow: 0 3px 14px rgba(139,58,74,0.18);
-  transform: translateY(-6px);
-  z-index: 2;
-}
-
-.dock-item.active {
-  background: var(--wine);
-  box-shadow: 0 6px 22px rgba(139,58,74,0.38), 0 2px 6px rgba(139,58,74,0.2);
-  transform: translateY(-8px);
-  width:  56px;
-  height: 56px;
-}
-
-.dock-icon {
-  font-size: 1.55rem;
-  line-height: 1;
-  pointer-events: none;
-  transition: transform 0.18s cubic-bezier(.34,1.56,.64,1);
-}
-
-.dock-item:hover .dock-icon,
-.dock-item.active .dock-icon {
-  transform: scale(1.18);
-}
-
-/* Label tooltip */
-.dock-item::after {
-  content: attr(data-label);
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px) scale(0.88);
-  background: var(--wine);
-  color: #fff;
-  font-size: 0.72rem;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-  padding: 4px 10px;
-  border-radius: 20px;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.18s, transform 0.18s cubic-bezier(.34,1.56,.64,1);
-  box-shadow: 0 3px 10px rgba(139,58,74,0.22);
-}
-
-.dock-item:hover::after,
-.dock-item:focus-visible::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0) scale(1);
-}
-
-/* Mobile: dock fixed bottom */
-@media (max-width: 600px) {
-  .dock-nav {
-    position: fixed;
-    bottom: 18px;
-    left: 0; right: 0;
-    z-index: 900;
-    margin: 0;
-    padding: 0 12px;
-  }
-  .dock-track {
-    width: 100%;
-    max-width: 300px;
-    justify-content: center;
-    padding: 6px 10px;
-    gap: 4px;
-  }
-  .dock-item,
-  .dock-item.active,
-  .dock-item:hover { width: 52px; height: 52px; transform: none; }
-  .dock-item.active { transform: translateY(-4px); }
-  .dock-item::after { display: none; }
-}
-
-/* ══════════════════════════════════════════════════════
-   MORPHING CURSOR
-   ══════════════════════════════════════════════════════ */
-.love-cursor {
-  position: fixed;
-  top: 0; left: 0;
-  pointer-events: none;
-  z-index: 99999;
-  font-size: 1.15rem;
-  color: var(--rose);
-  opacity: 0;
-  transition:
-    opacity      0.25s ease,
-    filter       0.25s ease;
-  will-change: transform;
-  user-select: none;
-  text-shadow: 0 1px 6px rgba(200,112,122,0.45);
-  line-height: 1;
-}
-
-.love-cursor.morphing {
-  filter: blur(4px) scale(0.6);
-  opacity: 0 !important;
-  transition: opacity 0.18s ease, filter 0.18s ease;
-}
-
-/* ══════════════════════════════════════════════════════
-   LOVE DAYS BUBBLE
-   ══════════════════════════════════════════════════════ */
-.love-days-bubble {
-  position: fixed;
-  z-index: 9999;
-  background: var(--wine);
-  color: #fff;
-  border-radius: 18px;
-  padding: 10px 20px 10px 16px;
+.dock-icon-box {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  pointer-events: none;
-  box-shadow: 0 8px 32px rgba(139,58,74,0.28), 0 2px 8px rgba(139,58,74,0.15);
-  opacity: 0;
-  transform: scale(0.82) translateY(6px);
-  transition: opacity 0.22s cubic-bezier(.34,1.56,.64,1), transform 0.22s cubic-bezier(.34,1.56,.64,1);
+  justify-content: center;
+  border-radius: 14px;
+  font-size: 1.5rem;
+  background: var(--warm);
+  color: var(--wine);
+  transition: background 0.18s, color 0.18s;
+  box-shadow: 0 2px 8px rgba(139,58,74,0.1);
+  border: none;
+  outline: none;
+  padding: 0;
+  will-change: width, height;
+}
+
+.dock-item.active .dock-icon-box {
+  background: var(--wine);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(139,58,74,0.35);
+}
+
+.dock-item:not(.active):hover .dock-icon-box {
+  background: var(--blush);
+}
+
+.dock-label {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.78rem;
   white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-family: 'Lora', serif;
+  letter-spacing: 0.02em;
+  z-index: 100;
 }
 
-.love-days-bubble.open {
-  opacity: 1;
-  transform: scale(1) translateY(0);
-}
-
-/* Tail */
-.love-days-bubble::before {
+.dock-label::after {
   content: '';
   position: absolute;
-  left: -7px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 0; height: 0;
-  border-top: 7px solid transparent;
-  border-bottom: 7px solid transparent;
-  border-right: 8px solid var(--wine);
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--ink);
 }
 
-.ldb-heart {
-  font-size: 1.1rem;
-  animation: heartbeat 1.1s ease-in-out infinite;
-}
-@keyframes heartbeat {
-  0%, 100% { transform: scale(1); }
-  40%       { transform: scale(1.35); }
-  60%       { transform: scale(1.15); }
+.dock-item:hover .dock-label {
+  opacity: 1;
 }
 
-.ldb-num {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.45rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+.dock-separator {
+  width: 1.5px;
+  height: 28px;
+  background: var(--blush);
+  border-radius: 2px;
+  align-self: center;
+  margin: 0 2px;
 }
-
-.ldb-label {
-  font-family: 'Lora', serif;
-  font-size: 0.78rem;
-  opacity: 0.85;
-  letter-spacing: 0.3px;
-}
-
-/* h1 hover glow */
-header h1 {
-  transition: color 0.2s, text-shadow 0.2s;
-}
-header h1.h1-hovered {
-  color: var(--rose);
-  text-shadow: 0 2px 20px rgba(200,112,122,0.3);
-}
-
 
 
 /* ── Add Button ────────────────────────────────────── */
@@ -1040,3 +915,63 @@ header h1.h1-hovered {
 }
 
 .sphere-modal-close:hover { background: var(--wine); }
+/* ══════════════════════════════════════════════════════
+   MOBILE FIXES
+   ══════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  header {
+    padding: 32px 12px 20px;
+  }
+
+  /* Dock scrollable trên mobile thay vì bị tràn */
+  .dock-wrap {
+    padding: 0 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    justify-content: flex-start;
+  }
+  .dock-wrap::-webkit-scrollbar { display: none; }
+
+  .dock {
+    gap: 8px;
+    padding: 8px 12px 10px;
+    /* Không shrink icon nhỏ quá */
+    flex-shrink: 0;
+  }
+
+  /* Dock item - fix min width để icon không bị méo */
+  .dock-item {
+    min-width: 52px !important;
+    min-height: 52px !important;
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  .dock-icon-box {
+    font-size: 1.3rem;
+    border-radius: 12px;
+  }
+
+  /* Label hiện dưới icon trên mobile thay vì trên */
+  .dock-label {
+    top: auto;
+    bottom: calc(100% + 8px);
+    font-size: 0.72rem;
+    padding: 3px 8px;
+  }
+
+  header h1 {
+    font-size: clamp(1.8rem, 8vw, 2.6rem);
+  }
+
+  header p {
+    font-size: 1rem;
+    margin-top: 6px;
+  }
+
+  .dock-separator {
+    height: 22px;
+  }
+}

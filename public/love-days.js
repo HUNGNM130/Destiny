@@ -1,151 +1,92 @@
 // ============================================================
-//  love-days.js
-//  1. Hiện số ngày yêu nhau khi hover chữ "Our Love Diary"
-//     (morphing cursor style – Joly UI inspired)
-//  2. Morphing cursor theo chuột trên toàn trang
+//  Love Days — Morphing Cursor effect on "Our Love Diary" title
+//  Hiện số ngày yêu nhau khi hover vào chữ h1
 // ============================================================
 (function () {
   'use strict';
 
-  // ── CẤU HÌNH: đổi ngày bắt đầu yêu ở đây ────────────────
-  const LOVE_START = new Date('2023-02-14'); // ← thay ngày thật của hai đứa
+  // ── Ngày bắt đầu yêu nhau ────────────────────────────────
+  const LOVE_START_DATE = new Date('2025-09-20');
 
-  // ── Tính số ngày ──────────────────────────────────────────
-  function getDaysCount() {
+  function getDaysInLove() {
     const now  = new Date();
-    const diff = now - LOVE_START;
+    const diff = now - LOVE_START_DATE;
     return Math.floor(diff / (1000 * 60 * 60 * 24));
   }
 
-  // ============================================================
-  //  MORPHING CURSOR
-  // ============================================================
-  const CURSOR_TEXTS = ['♥', '✦', '♥', '✿', '♥'];
-  let cursorIdx = 0;
+  function initMorphingCursor() {
+    const h1 = document.querySelector('header h1');
+    if (!h1) return;
 
-  const cursorEl = document.createElement('div');
-  cursorEl.id = 'loveCursor';
-  cursorEl.className = 'love-cursor';
-  cursorEl.textContent = CURSOR_TEXTS[0];
-  document.body.appendChild(cursorEl);
+    const days     = getDaysInLove();
+    const hoverText = `${days} ngày ♥`;
 
-  let cursorX = -999, cursorY = -999;
-  let rafCursor = null;
+    h1.style.position   = 'relative';
+    h1.style.display    = 'inline-block';
+    h1.style.cursor     = 'default';
+    h1.style.userSelect = 'none';
+    h1.style.overflow   = 'hidden';
 
-  function moveCursor(x, y) {
-    cursorX = x; cursorY = y;
-    if (!rafCursor) rafCursor = requestAnimationFrame(applyCursor);
-  }
-  function applyCursor() {
-    rafCursor = null;
-    cursorEl.style.transform = 'translate(' + cursorX + 'px, ' + cursorY + 'px) translate(-50%,-50%)';
-  }
+    // Overlay that covers the full h1 on hover
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      background: var(--wine);
+      pointer-events: none;
+      overflow: hidden;
+      opacity: 0;
+      transform: scale(0.92);
+      transition: opacity 0.42s cubic-bezier(0.33,1,0.68,1),
+                  transform 0.42s cubic-bezier(0.33,1,0.68,1);
+      z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+    `;
 
-  document.addEventListener('mousemove', function(e) {
-    moveCursor(e.clientX, e.clientY);
-    cursorEl.style.opacity = '1';
-  });
-  document.addEventListener('mouseleave', function() { cursorEl.style.opacity = '0'; });
+    const inner = document.createElement('div');
+    inner.style.cssText = `
+      font-family: 'Playfair Display', serif;
+      font-size: inherit;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.02em;
+      text-align: center;
+      padding: 0 12px;
+    `;
+    inner.textContent = hoverText;
+    overlay.appendChild(inner);
+    h1.appendChild(overlay);
 
-  // Morph every 1.6 s
-  setInterval(function() {
-    cursorEl.classList.add('morphing');
-    setTimeout(function() {
-      cursorIdx = (cursorIdx + 1) % CURSOR_TEXTS.length;
-      cursorEl.textContent = CURSOR_TEXTS[cursorIdx];
-      cursorEl.classList.remove('morphing');
-    }, 200);
-  }, 1600);
-
-  // Hide default cursor on desktop only
-  if (window.matchMedia('(pointer:fine)').matches) {
-    document.documentElement.style.cursor = 'none';
-    document.addEventListener('mouseover', function(e) {
-      var tag = e.target.tagName;
-      if (['INPUT','TEXTAREA','SELECT','BUTTON','A'].includes(tag)) {
-        document.documentElement.style.cursor = 'auto';
-        cursorEl.style.opacity = '0.3';
-      } else {
-        document.documentElement.style.cursor = 'none';
-        cursorEl.style.opacity = '1';
-      }
+    h1.addEventListener('mouseenter', () => {
+      inner.textContent = `${getDaysInLove()} ngày ♥`;
+      overlay.style.opacity   = '1';
+      overlay.style.transform = 'scale(1)';
     });
+
+    h1.addEventListener('mouseleave', () => {
+      overlay.style.opacity   = '0';
+      overlay.style.transform = 'scale(0.92)';
+    });
+
+    // Touch support for mobile
+    h1.addEventListener('touchstart', () => {
+      inner.textContent = `${getDaysInLove()} ngày ♥`;
+      overlay.style.opacity   = '1';
+      overlay.style.transform = 'scale(1)';
+    }, { passive: true });
+
+    h1.addEventListener('touchend', () => {
+      setTimeout(() => {
+        overlay.style.opacity   = '0';
+        overlay.style.transform = 'scale(0.92)';
+      }, 1200);
+    }, { passive: true });
   }
 
-  // ============================================================
-  //  DAYS COUNTER — hover on h1
-  // ============================================================
-  var h1 = document.querySelector('header h1');
-  if (!h1) return;
-
-  var bubble = document.createElement('div');
-  bubble.id = 'loveDaysBubble';
-  bubble.className = 'love-days-bubble';
-  document.body.appendChild(bubble);
-
-  var bubbleVisible = false;
-
-  function updateBubble() {
-    var days = getDaysCount();
-    bubble.innerHTML =
-      '<span class="ldb-heart">♥</span>' +
-      '<span class="ldb-num">' + days.toLocaleString('vi-VN') + '</span>' +
-      '<span class="ldb-label">ngày bên nhau</span>';
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMorphingCursor);
+  } else {
+    initMorphingCursor();
   }
-
-  function showBubble(x, y) {
-    if (!bubbleVisible) {
-      updateBubble();
-      bubble.classList.add('open');
-      bubbleVisible = true;
-    }
-    var bw = bubble.offsetWidth  || 160;
-    var bh = bubble.offsetHeight || 70;
-    var vw = window.innerWidth;
-    var lx = x + 18;
-    var ly = y - bh / 2;
-    if (lx + bw > vw - 12) lx = x - bw - 18;
-    if (ly < 8) ly = 8;
-    bubble.style.left = lx + 'px';
-    bubble.style.top  = ly + 'px';
-  }
-
-  function hideBubble() {
-    bubble.classList.remove('open');
-    bubbleVisible = false;
-  }
-
-  h1.style.cursor = 'default';
-  h1.addEventListener('mouseenter', function(e) {
-    showBubble(e.clientX, e.clientY);
-    h1.classList.add('h1-hovered');
-  });
-  h1.addEventListener('mousemove', function(e) {
-    if (bubbleVisible) showBubble(e.clientX, e.clientY);
-  });
-  h1.addEventListener('mouseleave', function() {
-    hideBubble();
-    h1.classList.remove('h1-hovered');
-  });
-
-  // Touch support
-  h1.addEventListener('touchstart', function(e) {
-    updateBubble();
-    bubble.style.left = '50%';
-    bubble.style.top  = (h1.getBoundingClientRect().bottom + window.scrollY + 14) + 'px';
-    bubble.style.transform = 'translateX(-50%) scale(1)';
-    bubble.classList.add('open');
-    bubbleVisible = true;
-    h1.classList.add('h1-hovered');
-    e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener('touchstart', function(e) {
-    if (!h1.contains(e.target) && bubbleVisible) {
-      hideBubble();
-      h1.classList.remove('h1-hovered');
-      bubble.style.transform = '';
-    }
-  });
-
 })();
