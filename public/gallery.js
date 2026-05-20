@@ -17,7 +17,7 @@
     hoverScale:      1.25,
     perspective:     1000,
     autoRotate:      true,
-    autoRotateSpeed: 0.35,   // deg/frame
+    autoRotateSpeed: 0.12,   // deg/frame
   };
 
   // ── State ─────────────────────────────────────────────────
