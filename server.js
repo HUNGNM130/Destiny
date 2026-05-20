@@ -336,6 +336,9 @@ app.delete("/memories/:id", (req, res) => {
           res.json({
             success: true
           });
+
+          // Broadcast realtime delete to all clients
+          io.emit("memoryDeleted", { id: parseInt(id) });
         }
       );
     }
@@ -540,6 +543,9 @@ app.delete("/videos/:id", (req, res) => {
           res.json({
             success: true
           });
+
+          // Broadcast realtime delete to all clients
+          io.emit("videoDeleted", { id: parseInt(id) });
         }
       );
     }

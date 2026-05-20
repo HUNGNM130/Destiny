@@ -12,16 +12,32 @@
 </head>
 <body>
 
+  <!-- Morphing cursor bubble -->
+  <div id="morphCursor" class="morph-cursor"></div>
+
   <header>
     <div class="header-hearts">♥ ♥ ♥</div>
-    <h1>Our Love Diary</h1>
+    <h1 id="loveTitle" class="love-title">Our Love Diary</h1>
     <p>Mỗi khoảnh khắc là mãi mãi ✦</p>
-    <div class="tab-toggle">
-      <button class="tab-btn active" id="tabPhotos" onclick="switchTab('photos')">📷 Kỷ niệm</button>
-      <button class="tab-btn" id="tabVideos" onclick="switchTab('videos')">🎬 Video</button>
-      <button class="tab-btn" id="tabGallery" onclick="switchTab('gallery')">✨ Tập chính</button>
-    </div>
   </header>
+
+  <!-- Dock Navigation -->
+  <nav class="dock-nav" id="dockNav">
+    <div class="dock-inner">
+      <button class="dock-item active" id="tabPhotos" onclick="switchTab('photos')" data-label="Kỷ niệm">
+        <span class="dock-icon">📷</span>
+        <span class="dock-label">Kỷ niệm</span>
+      </button>
+      <button class="dock-item" id="tabVideos" onclick="switchTab('videos')" data-label="Video">
+        <span class="dock-icon">🎬</span>
+        <span class="dock-label">Video</span>
+      </button>
+      <button class="dock-item" id="tabGallery" onclick="switchTab('gallery')" data-label="Tập chính">
+        <span class="dock-icon">✨</span>
+        <span class="dock-label">Tập chính</span>
+      </button>
+    </div>
+  </nav>
 
   <!-- Tab ảnh -->
   <div id="pagePhotos">
@@ -147,6 +163,83 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="script.js"></script>
+  <script>
+  // ── Dock magnification (Joly UI style) ──────────────────
+  (function() {
+    const dock = document.getElementById('dockNav');
+    if (!dock) return;
+    const items = dock.querySelectorAll('.dock-item');
+    const BASE = 56, MAX_SCALE = 1.65, SPREAD = 120;
+
+    function getMagnification(dist) {
+      if (dist > SPREAD) return 1;
+      const t = 1 - dist / SPREAD;
+      return 1 + (MAX_SCALE - 1) * Math.pow(t, 1.5);
+    }
+
+    dock.addEventListener('mousemove', (e) => {
+      items.forEach(item => {
+        const rect   = item.getBoundingClientRect();
+        const cx     = rect.left + rect.width / 2;
+        const dist   = Math.abs(e.clientX - cx);
+        const scale  = getMagnification(dist);
+        item.style.setProperty('--scale', scale);
+        const label = item.querySelector('.dock-label');
+        if (label) label.style.opacity = dist < 60 ? '1' : '0';
+      });
+    });
+
+    dock.addEventListener('mouseleave', () => {
+      items.forEach(item => {
+        item.style.setProperty('--scale', 1);
+        const label = item.querySelector('.dock-label');
+        if (label) label.style.opacity = '0';
+      });
+    });
+  })();
+
+  // ── Morphing Cursor on title ─────────────────────────────
+  (function() {
+    // SET YOUR COUPLE START DATE HERE (YYYY, MM-1, DD)  e.g. new Date(2022, 1, 14) = Feb 14 2022
+    const START_DATE = new Date(2023, 0, 1); // <-- change this!
+
+    const title  = document.getElementById('loveTitle');
+    const cursor = document.getElementById('morphCursor');
+    if (!title || !cursor) return;
+
+    function getDays() {
+      const now   = new Date();
+      const diff  = now - START_DATE;
+      return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
+    }
+
+    let animFrame = null;
+    let morphed   = false;
+
+    title.addEventListener('mouseenter', (e) => {
+      morphed = true;
+      const days = getDays();
+      cursor.innerHTML = `<span class='morph-days'>${days}</span><span class='morph-label'>ngày yêu nhau ♥</span>`;
+      cursor.classList.add('visible');
+      moveCursor(e);
+    });
+
+    title.addEventListener('mousemove', moveCursor);
+
+    title.addEventListener('mouseleave', () => {
+      morphed = false;
+      cursor.classList.remove('visible');
+      if (animFrame) cancelAnimationFrame(animFrame);
+    });
+
+    function moveCursor(e) {
+      if (!morphed) return;
+      const x = e.clientX, y = e.clientY;
+      cursor.style.left = x + 'px';
+      cursor.style.top  = y + 'px';
+    }
+  })();
+  </script>
   <script src="decorations.js"></script>
   <script src="gallery.js"></script>
 </body>

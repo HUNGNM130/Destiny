@@ -249,6 +249,27 @@ socket.on("memoryMoved", (data) => {
   card.style.transform = `rotate(${data.rotate}deg)`;
 });
 
+// ── REALTIME DELETE ──────────────────────────────────
+socket.on("memoryDeleted", (data) => {
+  const card = document.querySelector(`.memory-card[data-id="${data.id}"]`);
+  if (!card) return;
+  delete positions[data.id];
+  card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+  card.style.opacity    = "0";
+  card.style.transform  = (card.style.transform || "") + " scale(0.85)";
+  setTimeout(() => card.remove(), 420);
+});
+
+socket.on("videoDeleted", (data) => {
+  const card = document.querySelector(`.video-card[data-id="${data.id}"]`);
+  if (!card) return;
+  delete videoPositions[data.id];
+  card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+  card.style.opacity    = "0";
+  card.style.transform  = (card.style.transform || "") + " scale(0.85)";
+  setTimeout(() => card.remove(), 420);
+});
+
 socket.on("videoMoved", (data) => {
   const cards = document.querySelectorAll(".video-card");
 
