@@ -10,14 +10,14 @@
   const CFG = {
     containerSize:   420,
     sphereRadius:    175,
-    dragSensitivity: 0.5,
-    momentumDecay:   0.95,
+    dragSensitivity: 0.5,    // same as Joly UI default
+    momentumDecay:   0.95,   // same as Joly UI default
     maxRotSpeed:     5,
-    baseImageScale:  0.13,   // fraction of containerSize
+    baseImageScale:  0.13,
     hoverScale:      1.25,
     perspective:     1000,
     autoRotate:      true,
-    autoRotateSpeed: 0.35,   // deg/frame
+    autoRotateSpeed: 0.3,    // same as Joly UI autorotate demo
   };
 
   // ── State ─────────────────────────────────────────────────
@@ -206,7 +206,8 @@
 
   // ── Modal ─────────────────────────────────────────────────
   function openSphereModal(img) {
-    document.getElementById('sphereModalImg').src   = img.src;
+    // Use full-res URL for modal if available, fallback to src
+    document.getElementById('sphereModalImg').src   = img.fullSrc || img.src;
     document.getElementById('sphereModalImg').alt   = img.alt || '';
     document.getElementById('sphereModalTitle').textContent = img.title || '';
     document.getElementById('sphereModalDesc').textContent  = img.description || '';
@@ -276,14 +277,22 @@
       .then(mems => {
         // Keep only memories that have images
         const withImg = mems.filter(m => m.image);
-        // If fewer than 6 images, pad with Unsplash placeholders
-        images = withImg.map(m => ({
-          id:          String(m.id),
-          src:         m.image,
-          alt:         m.title || '',
-          title:       m.title || '',
-          description: m.description || '',
-        }));
+        images = withImg.map(m => {
+          // Cloudinary URL — insert w_300,h_300,c_fill for sphere tiles
+          // but keep original for the modal
+          const fullUrl  = m.image;
+          const thumbUrl = fullUrl.includes('res.cloudinary.com')
+            ? fullUrl.replace('/upload/', '/upload/w_300,h_300,c_fill,q_auto,f_auto/')
+            : fullUrl;
+          return {
+            id:          String(m.id),
+            src:         thumbUrl,   // resized for sphere tiles
+            fullSrc:     fullUrl,    // full res for modal
+            alt:         m.title || '',
+            title:       m.title || '',
+            description: m.description || '',
+          };
+        });
 
         if (images.length < 6) {
           const pads = [
