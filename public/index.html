@@ -39,15 +39,28 @@
     </div>
   </div>
 
-  <!-- Tab tập chính -->
+  <!-- Tab tập chính – sphere gallery -->
   <div id="pageGallery" style="display:none;">
-    <div class="gallery-header">
+    <div class="gallery-hero">
       <h2 class="gallery-title">✨ Tập chính của chúng mình</h2>
-      <p class="gallery-subtitle">Những khoảnh khắc đẹp nhất ♥</p>
+      <p class="gallery-sub">Kéo để xoay • Click để xem ♥</p>
     </div>
-    <div class="sphere-wrapper">
-      <canvas id="sphereCanvas"></canvas>
-      <div id="sphereTooltip" class="sphere-tooltip"></div>
+    <div class="sphere-outer">
+      <div id="sphereContainer" class="sphere-container">
+        <!-- tiles injected by gallery.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Spotlight modal (gallery) -->
+  <div id="sphereModal" class="sphere-modal-overlay" onclick="closeSphereModal()">
+    <div class="sphere-modal-card" onclick="event.stopPropagation()">
+      <button class="sphere-modal-close" onclick="closeSphereModal()">✕</button>
+      <img id="sphereModalImg" src="" alt="" />
+      <div class="sphere-modal-body">
+        <div id="sphereModalTitle" class="sphere-modal-title"></div>
+        <div id="sphereModalDesc"  class="sphere-modal-desc"></div>
+      </div>
     </div>
   </div>
 
