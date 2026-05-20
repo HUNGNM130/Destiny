@@ -1,147 +1,151 @@
 // ============================================================
-//  Love Days — Morphing Cursor effect on "Our Love Diary" title
-//  Hiện số ngày yêu nhau khi hover vào chữ h1
-//  Inspired by Joly UI MagneticText / Morphing Cursor
+//  love-days.js
+//  1. Hiện số ngày yêu nhau khi hover chữ "Our Love Diary"
+//     (morphing cursor style – Joly UI inspired)
+//  2. Morphing cursor theo chuột trên toàn trang
 // ============================================================
 (function () {
   'use strict';
 
-  // ── Ngày bắt đầu yêu nhau ────────────────────────────────
-  // Đổi thành ngày thật của hai đứa nhé ♥
-  const LOVE_START_DATE = new Date('2025-09-20');
+  // ── CẤU HÌNH: đổi ngày bắt đầu yêu ở đây ────────────────
+  const LOVE_START = new Date('2023-02-14'); // ← thay ngày thật của hai đứa
 
-  function getDaysInLove() {
+  // ── Tính số ngày ──────────────────────────────────────────
+  function getDaysCount() {
     const now  = new Date();
-    const diff = now - LOVE_START_DATE;
+    const diff = now - LOVE_START;
     return Math.floor(diff / (1000 * 60 * 60 * 24));
   }
 
-  function initMorphingCursor() {
-    const h1 = document.querySelector('header h1');
-    if (!h1) return;
+  // ============================================================
+  //  MORPHING CURSOR
+  // ============================================================
+  const CURSOR_TEXTS = ['♥', '✦', '♥', '✿', '♥'];
+  let cursorIdx = 0;
 
-    const originalText = h1.textContent.trim();
-    const days         = getDaysInLove();
-    const hoverText    = `${days} ngày ♥`;
+  const cursorEl = document.createElement('div');
+  cursorEl.id = 'loveCursor';
+  cursorEl.className = 'love-cursor';
+  cursorEl.textContent = CURSOR_TEXTS[0];
+  document.body.appendChild(cursorEl);
 
-    // Make h1 a positioned container
-    h1.style.position   = 'relative';
-    h1.style.display    = 'inline-block';
-    h1.style.cursor     = 'none';
-    h1.style.userSelect = 'none';
+  let cursorX = -999, cursorY = -999;
+  let rafCursor = null;
 
-    // Circle overlay (the morphing blob)
-    const circle = document.createElement('div');
-    circle.style.cssText = `
-      position: absolute;
-      top: 0; left: 0;
-      border-radius: 50%;
-      background: var(--wine);
-      pointer-events: none;
-      overflow: hidden;
-      width: 0; height: 0;
-      will-change: transform, width, height;
-      transition: width 0.5s cubic-bezier(0.33,1,0.68,1),
-                  height 0.5s cubic-bezier(0.33,1,0.68,1);
-      z-index: 2;
-      display: flex; align-items: center; justify-content: center;
-    `;
-
-    // Inner text (counter-moves with the circle)
-    const inner = document.createElement('div');
-    inner.style.cssText = `
-      position: absolute;
-      white-space: nowrap;
-      font-family: 'Caveat', cursive;
-      font-size: clamp(1.1rem, 3.5vw, 2rem);
-      font-weight: 700;
-      color: #fff;
-      will-change: transform;
-      display: flex; align-items: center; justify-content: center;
-    `;
-    inner.textContent = hoverText;
-    circle.appendChild(inner);
-    h1.appendChild(circle);
-
-    // State
-    const mousePos   = { x: 0, y: 0 };
-    const currentPos = { x: 0, y: 0 };
-    let isHovered    = false;
-    let rafId        = null;
-    let containerW   = 0;
-    let containerH   = 0;
-
-    function lerp(a, b, t) { return a + (b - a) * t; }
-
-    function animate() {
-      currentPos.x = lerp(currentPos.x, mousePos.x, 0.15);
-      currentPos.y = lerp(currentPos.y, mousePos.y, 0.15);
-
-      circle.style.transform =
-        `translate(${currentPos.x}px, ${currentPos.y}px) translate(-50%, -50%)`;
-
-      inner.style.width  = containerW + 'px';
-      inner.style.height = containerH + 'px';
-      inner.style.top    = '50%';
-      inner.style.left   = '50%';
-      inner.style.transform =
-        `translate(-50%,-50%) translate(${-currentPos.x}px, ${-currentPos.y}px)`;
-
-      rafId = requestAnimationFrame(animate);
-    }
-
-    function updateSize() {
-      containerW = h1.offsetWidth;
-      containerH = h1.offsetHeight;
-    }
-
-    function onMouseEnter(e) {
-      updateSize();
-      const rect = h1.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      mousePos.x   = x;
-      mousePos.y   = y;
-      currentPos.x = x;
-      currentPos.y = y;
-      isHovered = true;
-
-      // Refresh day count in case page stayed open a long time
-      inner.textContent = `${getDaysInLove()} ngày ♥`;
-
-      circle.style.width  = '160px';
-      circle.style.height = '160px';
-
-      if (!rafId) rafId = requestAnimationFrame(animate);
-    }
-
-    function onMouseMove(e) {
-      if (!isHovered) return;
-      const rect = h1.getBoundingClientRect();
-      mousePos.x = e.clientX - rect.left;
-      mousePos.y = e.clientY - rect.top;
-    }
-
-    function onMouseLeave() {
-      isHovered = false;
-      circle.style.width  = '0';
-      circle.style.height = '0';
-    }
-
-    h1.addEventListener('mouseenter', onMouseEnter);
-    h1.addEventListener('mousemove',  onMouseMove);
-    h1.addEventListener('mouseleave', onMouseLeave);
-
-    window.addEventListener('resize', updateSize);
-    updateSize();
-
-    // Start animation loop always (for smooth lerp even before hover)
-    rafId = requestAnimationFrame(animate);
+  function moveCursor(x, y) {
+    cursorX = x; cursorY = y;
+    if (!rafCursor) rafCursor = requestAnimationFrame(applyCursor);
+  }
+  function applyCursor() {
+    rafCursor = null;
+    cursorEl.style.transform = 'translate(' + cursorX + 'px, ' + cursorY + 'px) translate(-50%,-50%)';
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initMorphingCursor);
-  } else {
-    initMorphingCursor();
+  document.addEventListener('mousemove', function(e) {
+    moveCursor(e.clientX, e.clientY);
+    cursorEl.style.opacity = '1';
+  });
+  document.addEventListener('mouseleave', function() { cursorEl.style.opacity = '0'; });
+
+  // Morph every 1.6 s
+  setInterval(function() {
+    cursorEl.classList.add('morphing');
+    setTimeout(function() {
+      cursorIdx = (cursorIdx + 1) % CURSOR_TEXTS.length;
+      cursorEl.textContent = CURSOR_TEXTS[cursorIdx];
+      cursorEl.classList.remove('morphing');
+    }, 200);
+  }, 1600);
+
+  // Hide default cursor on desktop only
+  if (window.matchMedia('(pointer:fine)').matches) {
+    document.documentElement.style.cursor = 'none';
+    document.addEventListener('mouseover', function(e) {
+      var tag = e.target.tagName;
+      if (['INPUT','TEXTAREA','SELECT','BUTTON','A'].includes(tag)) {
+        document.documentElement.style.cursor = 'auto';
+        cursorEl.style.opacity = '0.3';
+      } else {
+        document.documentElement.style.cursor = 'none';
+        cursorEl.style.opacity = '1';
+      }
+    });
   }
+
+  // ============================================================
+  //  DAYS COUNTER — hover on h1
+  // ============================================================
+  var h1 = document.querySelector('header h1');
+  if (!h1) return;
+
+  var bubble = document.createElement('div');
+  bubble.id = 'loveDaysBubble';
+  bubble.className = 'love-days-bubble';
+  document.body.appendChild(bubble);
+
+  var bubbleVisible = false;
+
+  function updateBubble() {
+    var days = getDaysCount();
+    bubble.innerHTML =
+      '<span class="ldb-heart">♥</span>' +
+      '<span class="ldb-num">' + days.toLocaleString('vi-VN') + '</span>' +
+      '<span class="ldb-label">ngày bên nhau</span>';
+  }
+
+  function showBubble(x, y) {
+    if (!bubbleVisible) {
+      updateBubble();
+      bubble.classList.add('open');
+      bubbleVisible = true;
+    }
+    var bw = bubble.offsetWidth  || 160;
+    var bh = bubble.offsetHeight || 70;
+    var vw = window.innerWidth;
+    var lx = x + 18;
+    var ly = y - bh / 2;
+    if (lx + bw > vw - 12) lx = x - bw - 18;
+    if (ly < 8) ly = 8;
+    bubble.style.left = lx + 'px';
+    bubble.style.top  = ly + 'px';
+  }
+
+  function hideBubble() {
+    bubble.classList.remove('open');
+    bubbleVisible = false;
+  }
+
+  h1.style.cursor = 'default';
+  h1.addEventListener('mouseenter', function(e) {
+    showBubble(e.clientX, e.clientY);
+    h1.classList.add('h1-hovered');
+  });
+  h1.addEventListener('mousemove', function(e) {
+    if (bubbleVisible) showBubble(e.clientX, e.clientY);
+  });
+  h1.addEventListener('mouseleave', function() {
+    hideBubble();
+    h1.classList.remove('h1-hovered');
+  });
+
+  // Touch support
+  h1.addEventListener('touchstart', function(e) {
+    updateBubble();
+    bubble.style.left = '50%';
+    bubble.style.top  = (h1.getBoundingClientRect().bottom + window.scrollY + 14) + 'px';
+    bubble.style.transform = 'translateX(-50%) scale(1)';
+    bubble.classList.add('open');
+    bubbleVisible = true;
+    h1.classList.add('h1-hovered');
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchstart', function(e) {
+    if (!h1.contains(e.target) && bubbleVisible) {
+      hideBubble();
+      h1.classList.remove('h1-hovered');
+      bubble.style.transform = '';
+    }
+  });
+
 })();

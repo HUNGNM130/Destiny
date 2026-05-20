@@ -16,21 +16,17 @@
     <div class="header-hearts">♥ ♥ ♥</div>
     <h1>Our Love Diary</h1>
     <p>Mỗi khoảnh khắc là mãi mãi ✦</p>
-    <div class="dock-wrap">
-      <div class="dock" id="mainDock">
-        <div class="dock-item active" id="tabPhotos" data-tab="photos">
-          <div class="dock-icon-box">📷</div>
-          <div class="dock-label">Kỷ niệm</div>
-        </div>
-        <div class="dock-item" id="tabVideos" data-tab="videos">
-          <div class="dock-icon-box">🎬</div>
-          <div class="dock-label">Video</div>
-        </div>
-        <div class="dock-separator"></div>
-        <div class="dock-item" id="tabGallery" data-tab="gallery">
-          <div class="dock-icon-box">✨</div>
-          <div class="dock-label">Tập chính</div>
-        </div>
+    <div class="dock-nav">
+      <div class="dock-track">
+        <button class="dock-item active" id="tabPhotos" onclick="switchTab('photos')" data-label="Kỷ niệm">
+          <span class="dock-icon">📷</span>
+        </button>
+        <button class="dock-item" id="tabVideos" onclick="switchTab('videos')" data-label="Video">
+          <span class="dock-icon">🎬</span>
+        </button>
+        <button class="dock-item" id="tabGallery" onclick="switchTab('gallery')" data-label="Tập chính">
+          <span class="dock-icon">✨</span>
+        </button>
       </div>
     </div>
   </header>
@@ -162,6 +158,5 @@
   <script src="decorations.js"></script>
   <script src="gallery.js"></script>
   <script src="love-days.js"></script>
-  <script src="dock.js"></script>
 </body>
 </html>

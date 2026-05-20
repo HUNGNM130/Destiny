@@ -230,6 +230,31 @@ function resetRotate() {
 }
 // ── SOCKET REALTIME ──────────────────────────
 
+// ── REALTIME: xoá & thêm ──────────────────────────────
+socket.on("memoryDeleted", (data) => {
+  const card = document.querySelector(`.memory-card[data-id="${data.id}"]`);
+  if (card) {
+    card.style.transition = "opacity 0.3s, transform 0.3s";
+    card.style.opacity = "0";
+    card.style.transform += " scale(0.85)";
+    setTimeout(() => card.remove(), 320);
+    delete positions[data.id];
+  }
+});
+socket.on("memoryAdded", () => { if (currentTab === "photos") loadMemories(); });
+
+socket.on("videoDeleted", (data) => {
+  const card = document.querySelector(`.video-card[data-id="${data.id}"]`);
+  if (card) {
+    card.style.transition = "opacity 0.3s, transform 0.3s";
+    card.style.opacity = "0";
+    card.style.transform += " scale(0.85)";
+    setTimeout(() => card.remove(), 320);
+    delete videoPositions[data.id];
+  }
+});
+socket.on("videoAdded", () => { if (currentTab === "videos") loadVideos(); });
+
 socket.on("memoryMoved", (data) => {
   const card = document.querySelector(
     `.memory-card[data-id="${data.id}"]`
@@ -276,30 +301,6 @@ socket.on("videoMoved", (data) => {
   target.style.left = data.x + "px";
   target.style.top = data.y + "px";
   target.style.transform = `rotate(${data.rotate}deg)`;
-});
-
-socket.on("memoryDeleted", (data) => {
-  const card = document.querySelector(`.memory-card[data-id="${data.id}"]`);
-  if (!card) return;
-  delete positions[data.id];
-  card.style.transition = "all 0.35s ease";
-  card.style.opacity = "0";
-  card.style.transform += " scale(0.85)";
-  setTimeout(() => card.remove(), 360);
-});
-
-socket.on("videoDeleted", (data) => {
-  const cards = document.querySelectorAll(".video-card");
-  cards.forEach((c) => {
-    const btn = c.querySelector(".delete-btn");
-    if (btn && btn.getAttribute("onclick")?.includes(`(${data.id})`)) {
-      delete videoPositions[data.id];
-      c.style.transition = "all 0.35s ease";
-      c.style.opacity = "0";
-      c.style.transform += " scale(0.85)";
-      setTimeout(() => c.remove(), 360);
-    }
-  });
 });
 // ── Load Memories ──────────────────────────────────────
 async function loadMemories() {
@@ -479,6 +480,7 @@ async function saveMemory() {
       await fetch(`${API_URL}/${id}`, { method:"PUT", body:formData });
     } else {
       await fetch(API_URL, { method:"POST", body:formData });
+      socket.emit("memoryAdded", {});
     }
     closeForm();
     loadMemories();
@@ -558,6 +560,7 @@ async function saveVideo() {
     } else {
       if (!vf) { Swal.fire({ icon:"warning", title:"Chưa chọn video", text:"Vui lòng chọn file video nhé ♥" }); return; }
       await fetch(VIDEO_API_URL, { method:"POST", body:formData });
+      socket.emit("videoAdded", {});
     }
     closeVideoForm();
     loadVideos();
