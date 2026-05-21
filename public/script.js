@@ -472,10 +472,23 @@ async function saveMemory() {
 
   try {
     if (id) {
-      await fetch(`${API_URL}/${id}`, { method:"PUT", body:formData });
-    } else {
-      await fetch(API_URL, { method:"POST", body:formData });
-    }
+
+  await fetch(`${API_URL}/${id}`, {
+    method:"PUT",
+    body:formData
+  });
+
+} else {
+
+  const res = await fetch(API_URL, {
+    method:"POST",
+    body:formData
+  });
+
+  const newMemory = await res.json();
+
+  socket.emit("newMemory", newMemory);
+}
     closeForm();
     loadMemories();
   } catch {
@@ -607,7 +620,79 @@ async function deleteVideo(id) {
     Swal.fire({ title:"Đã xoá!", text:"Video đã được xoá.", icon:"success", timer: 1500, showConfirmButton: false });
   }
 }
+socket.on("memoryAdded", (memory) => {
 
+  const container = document.getElementById("memoryContainer");
+
+  // xóa empty state nếu có
+  const empty = container.querySelector(".empty-state");
+  if (empty) empty.remove();
+
+  const card = document.createElement("div");
+  card.className = "memory-card";
+  card.dataset.id = memory.id;
+
+  const cols = Math.floor((window.innerWidth - 40) / 240) || 3;
+
+  const pos = getInitialPos(memory, Object.keys(positions).length, cols);
+
+  positions[memory.id] = pos;
+
+  card.style.left = pos.x + "px";
+  card.style.top = pos.y + "px";
+  card.style.transform = `rotate(${pos.rotate}deg)`;
+  card.style.zIndex = 1;
+
+  const d = new Date(memory.date);
+
+  const dateStr = d.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+
+  card.innerHTML = `
+    ${memory.image
+      ? `<img src="${memory.image}?t=${Date.now()}" alt="${memory.title}" loading="lazy"/>`
+      : `<div style="width:100%;aspect-ratio:1/1;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:3rem;">♥</div>`
+    }
+
+    <div class="card-body">
+      <div class="card-title">${memory.title}</div>
+      <div class="card-date">📅 ${dateStr}</div>
+
+      ${memory.description
+        ? `<div class="card-desc">${memory.description}</div>`
+        : ""
+      }
+
+      <div class="card-actions">
+        <button class="edit-btn" onclick='editMemory(${JSON.stringify(memory)})'>
+          ✏️ Sửa
+        </button>
+
+        <button class="delete-btn" onclick="deleteMemory(${memory.id})">
+          🗑 Xóa
+        </button>
+      </div>
+    </div>
+  `;
+
+  container.appendChild(card);
+
+  requestAnimationFrame(() => {
+    card.style.opacity = "0";
+    card.style.transform += " scale(0.8)";
+
+    requestAnimationFrame(() => {
+      card.style.transition = "all 0.35s ease";
+      card.style.opacity = "1";
+      card.style.transform = `rotate(${pos.rotate}deg) scale(1)`;
+    });
+  });
+
+  makeDraggable(card, memory.id, false);
+});
 // ── Close overlay khi click ngoài ─────────────────────
 document.getElementById("memoryFormOverlay").addEventListener("click", function(e) {
   if (e.target === this) closeForm();

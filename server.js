@@ -39,7 +39,9 @@ io.on("connection", (socket) => {
   socket.on("deleteMemory", (data) => {
     socket.broadcast.emit("memoryDeleted", data);
   });
-
+  socket.on("newMemory", (data) => {
+  socket.broadcast.emit("memoryAdded", data);
+});
   socket.on("deleteVideo", (data) => {
     socket.broadcast.emit("videoDeleted", data);
   });
