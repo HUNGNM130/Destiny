@@ -1,4 +1,11 @@
 require("dotenv").config();
+const ytdlp = require("yt-dlp-exec");
+const ffmpeg = require("fluent-ffmpeg");
+const ffmpegPath = require("ffmpeg-static");
+const fs = require("fs");
+const path = require("path");
+
+ffmpeg.setFfmpegPath(ffmpegPath);
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 console.log("HOST:", process.env.DB_HOST);
@@ -284,6 +291,65 @@ app.patch("/videos/:id/position", (req, res) => {
       io.emit("videoMoved", { id: req.params.id, x, y, rotate });
     }
   );
+});
+
+app.post("/youtube-mp3", async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing YouTube URL"
+      });
+    }
+
+    const id = Date.now();
+
+    const tempVideo = path.join(__dirname, `temp_${id}.webm`);
+    const tempAudio = path.join(__dirname, `temp_${id}.mp3`);
+
+    // Download audio from YouTube
+    await ytdlp(url, {
+      output: tempVideo,
+      format: "bestaudio",
+      noCheckCertificates: true,
+      preferFreeFormats: true,
+      youtubeSkipDashManifest: true
+    });
+
+    // Convert to mp3
+    ffmpeg(tempVideo)
+      .audioBitrate(128)
+      .format("mp3")
+      .save(tempAudio)
+      .on("end", () => {
+        res.download(tempAudio, "music.mp3", () => {
+          try {
+            if (fs.existsSync(tempVideo)) fs.unlinkSync(tempVideo);
+            if (fs.existsSync(tempAudio)) fs.unlinkSync(tempAudio);
+          } catch (e) {
+            console.log("Cleanup error:", e.message);
+          }
+        });
+      })
+      .on("error", (err) => {
+        console.error("FFmpeg error:", err);
+
+        res.status(500).json({
+          success: false,
+          message: "MP3 convert failed"
+        });
+      });
+
+  } catch (err) {
+    console.error("YouTube convert error:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "YouTube download failed"
+    });
+  }
 });
 
 server.listen(PORT, "0.0.0.0", () => { console.log(`🚀 Server running on port ${PORT}`); });

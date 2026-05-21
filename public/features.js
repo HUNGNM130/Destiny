@@ -941,7 +941,35 @@ window.openStoryMode = async function() {
     }
 
     try {
-      const api = `https://cdn38.savetube.me/info?url=${encodeURIComponent(url)}`;
+      const res = await fetch(`${BASE_URL}/youtube-mp3`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ url })
+});
+
+if (!res.ok) {
+  throw new Error("Convert failed");
+}
+
+const blob = await res.blob();
+const audioUrl = URL.createObjectURL(blob);
+
+window._ytAudioUrl = audioUrl;
+
+if (player) {
+  player.src = audioUrl;
+  player.style.display = 'block';
+}
+
+if (status) {
+  status.innerHTML = '✅ Convert thành công!';
+}
+
+if (saveBtn) {
+  saveBtn.style.display = 'inline-flex';
+}
 
       const res = await fetch(api);
 
