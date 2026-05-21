@@ -169,11 +169,22 @@
         const date = document.getElementById('capsuleDate').value;
         if (!title || !msg || !date) { Swal.showValidationMessage('Vui lòng điền đầy đủ ♥'); return false; }
         const capsules = JSON.parse(localStorage.getItem('memoryCapsules') || '[]');
-        capsules.push({ id: Date.now(), title, message: msg, openDate: date, createdDate: today, opened: false });
-        localStorage.setItem('memoryCapsules', JSON.stringify(capsules));
-        // Mark opened ones
-        stored.forEach(c => { if (c.openDate <= today) c.opened = true; });
-        localStorage.setItem('memoryCapsules', JSON.stringify([...stored.map(c => ({ ...c, opened: c.openDate <= today ? true : c.opened })), { id: Date.now(), title, message: msg, openDate: date, createdDate: today, opened: false }]));
+
+const updated = capsules.map(c => ({
+  ...c,
+  opened: c.openDate <= today ? true : c.opened
+}));
+
+updated.push({
+  id: Date.now(),
+  title,
+  message: msg,
+  openDate: date,
+  createdDate: today,
+  opened: false
+});
+
+localStorage.setItem('memoryCapsules', JSON.stringify(updated));
         return true;
       }
     }).then(result => {
@@ -907,130 +918,71 @@ window.openStoryMode = async function() {
     }
   }
 
-  window.loadYouTubeAudio = async function() {
-    const url = (document.getElementById('ytLinkInput')?.value || '').trim();
-    const status = document.getElementById('ytStatus');
-    const saveBtn = document.getElementById('ytSaveBtn');
-    const player = document.getElementById('ytAudioPlayer');
+  window.loadYouTubeAudio = async function () {
+  const url = (document.getElementById("ytLinkInput")?.value || "").trim();
 
-    if (!url) {
-      if (status) status.textContent = '⚠️ Vui lòng nhập link YouTube';
-      return;
+  const status = document.getElementById("ytStatus");
+  const saveBtn = document.getElementById("ytSaveBtn");
+  const player = document.getElementById("ytAudioPlayer");
+
+  if (!url) {
+    if (status) status.textContent = "⚠️ Nhập link YouTube";
+    return;
+  }
+
+  if (status) {
+    status.innerHTML = "⏳ Đang convert YouTube → MP3...";
+  }
+
+  if (saveBtn) {
+    saveBtn.style.display = "none";
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}/youtube-mp3`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!res.ok) {
+      throw new Error("Server convert lỗi");
     }
 
-    const videoId = extractVideoId(url);
+    const blob = await res.blob();
 
-    if (!videoId) {
-      if (status) status.textContent = '❌ Link YouTube không hợp lệ';
-      return;
-    }
+    const audioUrl = URL.createObjectURL(blob);
 
-    if (status) {
-      status.innerHTML = '⏳ Đang convert YouTube → MP3...';
+    window._ytAudioBlob = blob;
+    window._ytAudioUrl = audioUrl;
+
+    if (player) {
+      player.src = audioUrl;
+      player.style.display = "block";
     }
 
     if (saveBtn) {
-      saveBtn.style.display = 'none';
-      saveBtn.disabled = true;
+      saveBtn.style.display = "inline-flex";
     }
 
-    if (player) {
-      player.pause();
-      player.src = '';
-      player.style.display = 'none';
+    if (status) {
+      status.innerHTML = "✅ Convert thành công!";
     }
 
-    try {
-      const res = await fetch(`${BASE_URL}/youtube-mp3`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({ url })
-});
+  } catch (err) {
+    console.error(err);
 
-if (!res.ok) {
-  throw new Error("Convert failed");
-}
-
-const blob = await res.blob();
-const audioUrl = URL.createObjectURL(blob);
-
-window._ytAudioUrl = audioUrl;
-
-if (player) {
-  player.src = audioUrl;
-  player.style.display = 'block';
-}
-
-if (status) {
-  status.innerHTML = '✅ Convert thành công!';
-}
-
-if (saveBtn) {
-  saveBtn.style.display = 'inline-flex';
-}
-
-      const res = await fetch(api);
-
-      if (!res.ok) {
-        throw new Error('Không thể kết nối server convert');
-      }
-
-      const data = await res.json();
-
-      if (!data || !data.data) {
-        throw new Error('Không lấy được dữ liệu video');
-      }
-
-      const audio = data.data.audio?.find(a => a.ext === 'mp3') || data.data.audio?.[0];
-
-      if (!audio || !audio.url) {
-        throw new Error('Không tìm thấy file MP3');
-      }
-
-      window._ytAudioUrl = audio.url;
-      window._ytVideoUrl = url;
-
-      const title = data.data.title || `YouTube Audio ${videoId}`;
-
-      const songInput = document.getElementById('spotifySongInput');
-      const songName = document.getElementById('spotifySongName');
-
-      if (songInput && !songInput.value) {
-        songInput.value = title;
-      }
-
-      if (songName) {
-        songName.textContent = title;
-      }
-
-      if (player) {
-        player.src = audio.url;
-        player.style.display = 'block';
-      }
-
-      if (saveBtn) {
-        saveBtn.style.display = 'inline-flex';
-        saveBtn.disabled = false;
-      }
-
-      if (status) {
-        status.innerHTML = '✅ Convert thành công! Có thể nghe thử và lưu ♥';
-      }
-
-    } catch(err) {
-      console.error(err);
-
-      if (status) {
-        status.innerHTML = `
-          ❌ Convert thất bại<br>
-          <small>${err.message}</small><br><br>
-          <small>💡 Hãy thử link YouTube khác hoặc upload MP3 trực tiếp.</small>
-        `;
-      }
+    if (status) {
+      status.innerHTML = `
+        ❌ Convert thất bại<br>
+        <small>${err.message}</small><br><br>
+        <small>💡 Hãy thử link YouTube khác hoặc upload MP3 trực tiếp.</small>
+      `;
     }
-  };
+  }
+};
 
 window.saveYouTubeAsMp3 = async function() {
     const status = document.getElementById('ytStatus');
