@@ -6,7 +6,7 @@ const ffmpegPath = require("ffmpeg-static");
 ffmpeg.setFfmpegPath(ffmpegPath);
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const { Readable } = require("stream");
+
 console.log("HOST:", process.env.DB_HOST);
 console.log("USER:", process.env.DB_USER);
 console.log("PORT:", process.env.DB_PORT);
@@ -146,7 +146,6 @@ app.post("/memories", uploadImage.single("image"), (req, res) => {
 // Debug: để tìm lỗi 500 khi upload ảnh
   console.log("[UPLOAD] memories/image field present:", !!req.file, "originalname:", req.file?.originalname);
   console.log("[UPLOAD] memories/image req.file.path:", req.file?.path);
-
 
   const { title, date, description, mood, location, music } = req.body;
   const image = req.file ? req.file.path : null;
