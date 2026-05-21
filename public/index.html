@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>💌 Our Love Diary</title>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital@0;1&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital@0;1&family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
@@ -12,7 +12,24 @@
 </head>
 <body>
 
-  <header>
+  <!-- ═══ CINEMATIC INTRO ═══ -->
+  <div id="cinematicIntro" class="cinematic-intro">
+    <div class="cinematic-bg"></div>
+    <div class="cinematic-content">
+      <div class="cinematic-logo">
+        <span class="cinematic-heart">♥</span>
+        <h1 class="cinematic-title">Our Love Diary</h1>
+        <p class="cinematic-sub">Mỗi khoảnh khắc là mãi mãi ✦</p>
+      </div>
+      <div class="cinematic-loading">
+        <div class="cinematic-bar"><div class="cinematic-progress"></div></div>
+        <p class="cinematic-hint">Đang tải những kỷ niệm...</p>
+      </div>
+    </div>
+    <div class="cinematic-particles" id="cinematicParticles"></div>
+  </div>
+
+<header>
     <div class="header-hearts">♥ ♥ ♥</div>
     <h1>Our Love Diary</h1>
     <div class="dock-wrap">
@@ -33,10 +50,53 @@
       </div>
     </div>
     <p>Mỗi khoảnh khắc là mãi mãi ✦</p>
+  </header>
 
   <!-- Tab ảnh -->
   <div id="pagePhotos">
-    <button class="btn-add" onclick="openForm()">Thêm khoảnh khắc</button>
+    <div class="page-toolbar">
+      <button class="btn-add" onclick="openForm()">＋ Thêm khoảnh khắc</button>
+      <button class="btn-search" onclick="toggleSearch()">📅 Lọc theo thời gian</button>
+    </div>
+
+    <!-- Filter Panel (time-based) -->
+    <div id="searchPanel" class="search-panel">
+      <div class="search-panel-inner">
+        <h3 class="search-title">📅 Lọc theo thời gian</h3>
+        <div class="filter-mode-tabs">
+          <button class="filter-mode-btn active" id="modeDay" onclick="switchFilterMode('day')">📌 Chọn ngày</button>
+          <button class="filter-mode-btn" id="modeRange" onclick="switchFilterMode('range')">📆 Khoảng thời gian</button>
+        </div>
+
+        <!-- Single day mode -->
+        <div id="filterModeDay" class="filter-mode-content">
+          <div class="search-field">
+            <label>📅 Ngày cụ thể</label>
+            <input type="text" id="searchDate" placeholder="Chọn một ngày..." readonly />
+          </div>
+        </div>
+
+        <!-- Date range mode -->
+        <div id="filterModeRange" class="filter-mode-content" style="display:none">
+          <div class="search-grid-2">
+            <div class="search-field">
+              <label>📅 Từ ngày</label>
+              <input type="text" id="searchDateFrom" placeholder="Từ ngày..." readonly />
+            </div>
+            <div class="search-field">
+              <label>📅 Đến ngày</label>
+              <input type="text" id="searchDateTo" placeholder="Đến ngày..." readonly />
+            </div>
+          </div>
+        </div>
+
+        <div class="search-actions">
+          <button class="btn-search-apply" onclick="applySearch()">🔍 Lọc</button>
+          <button class="btn-search-clear" onclick="clearSearch()">✕ Xoá bộ lọc</button>
+        </div>
+      </div>
+    </div>
+
     <div id="memoryContainer">
       <div class="loading">đang tải những kỷ niệm... ♥</div>
     </div>
@@ -44,7 +104,9 @@
 
   <!-- Tab video -->
   <div id="pageVideos" style="display:none;">
-    <button class="btn-add" onclick="openVideoForm()">Thêm video</button>
+    <div class="page-toolbar">
+      <button class="btn-add" onclick="openVideoForm()">＋ Thêm video</button>
+    </div>
     <div id="videoContainer">
       <div class="loading">đang tải video... ♥</div>
     </div>
@@ -57,9 +119,7 @@
       <p class="gallery-sub">Kéo để xoay • Click để xem ♥</p>
     </div>
     <div class="sphere-outer">
-      <div id="sphereContainer" class="sphere-container">
-        <!-- tiles injected by gallery.js -->
-      </div>
+      <div id="sphereContainer" class="sphere-container"></div>
     </div>
   </div>
 
@@ -92,6 +152,7 @@
         <label>Ghi chú ✍</label>
         <textarea id="description" rows="3" placeholder="Viết gì đó thật dễ thương..."></textarea>
       </div>
+
       <div class="form-group">
         <label>Hình ảnh 📷</label>
         <div class="upload-area">
@@ -102,11 +163,9 @@
           <div class="cropper-container-box">
             <img id="cropperImg" />
           </div>
-          <!-- Thanh xoay -->
           <div class="rotate-row">
             <span class="rotate-label">↺ Xoay</span>
-            <input type="range" id="rotateRange" min="0" max="360" value="0"
-                   oninput="onRotateRange(this.value)" />
+            <input type="range" id="rotateRange" min="0" max="360" value="0" oninput="onRotateRange(this.value)" />
             <span class="rotate-deg" id="rotateDeg">0°</span>
             <button type="button" class="btn-rotate-reset" onclick="resetRotate()">Reset</button>
           </div>
@@ -162,5 +221,8 @@
   <script src="gallery.js"></script>
   <script src="love-days.js"></script>
   <script src="dock.js"></script>
+  <script src="cinematic.js"></script>
+  <script src="location-autocomplete.js"></script>
+  <script src="features.js"></script>
 </body>
 </html>

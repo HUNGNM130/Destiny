@@ -20,30 +20,26 @@ window.addEventListener("load", () => {
   btn.innerHTML = "🎉 Bật trang trí";
 });
 
-// ── Nút bật/tắt ───────────────────────────────────────
+// ── Nút bật/tắt (merged vào panel ✨ trong features.js) ─
 function buildToggleBtn() {
+  // Tạo element ẩn để tương thích với toggleDeco
   const btn = document.createElement("button");
   btn.id = "decoToggleBtn";
-  btn.innerHTML = "🎉 Tắt trang trí";
+  btn.style.display = "none";
   btn.onclick = toggleDeco;
   document.body.appendChild(btn);
 }
 
 function toggleDeco() {
   decoActive = !decoActive;
-
-  const btn = document.getElementById("decoToggleBtn");
-
+  // Update merged panel button label
+  const mergedBtn = document.getElementById("decoToggleBtnMerged");
   if (decoActive) {
-    btn.innerHTML = "🎉 Tắt trang trí";
-
+    if (mergedBtn) mergedBtn.innerHTML = "🎉 Trang trí ✓";
     buildStringLights();
     startAll();
-
   } else {
-
-    btn.innerHTML = "🎉 Bật trang trí";
-
+    if (mergedBtn) mergedBtn.innerHTML = "🎉 Trang trí";
     stopAll();
   }
 }
