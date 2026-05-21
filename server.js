@@ -6,9 +6,11 @@ const ffmpegPath = require("ffmpeg-static");
 ffmpeg.setFfmpegPath(ffmpegPath);
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const { Readable } = require("stream");
 console.log("HOST:", process.env.DB_HOST);
 console.log("USER:", process.env.DB_USER);
 console.log("PORT:", process.env.DB_PORT);
+
 const express = require("express");
 const mysql = require("mysql2");
 const multer = require("multer");
@@ -141,6 +143,10 @@ app.get("/memories", (req, res) => {
 
 // CREATE memory
 app.post("/memories", uploadImage.single("image"), (req, res) => {
+  // Debug: để tìm lỗi 500 khi upload ảnh
+  // console.log("UPLOAD IMAGE FIELD:", !!req.file, req.file?.originalname);
+  // console.log("CLOUDINARY FILE PATH:", req.file?.path);
+
   const { title, date, description, mood, location, music } = req.body;
   const image = req.file ? req.file.path : null;
   db.query(
