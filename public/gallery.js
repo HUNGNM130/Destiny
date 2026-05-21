@@ -368,4 +368,25 @@
       _orig(tab);
     }
   };
+
+  // ── Realtime: add new image to sphere when another user uploads ──
+  if (typeof socket !== 'undefined') {
+    socket.on('memoryAdded', (memory) => {
+      if (!isActive || !memory.image) return;
+      const fullUrl  = memory.image;
+      const thumbUrl = fullUrl.includes('res.cloudinary.com')
+        ? fullUrl.replace('/upload/', '/upload/w_300,h_300,c_fill,q_auto,f_auto/')
+        : fullUrl;
+      images.push({
+        id:          String(memory.id),
+        src:         thumbUrl,
+        fullSrc:     fullUrl,
+        alt:         memory.title || '',
+        title:       memory.title || '',
+        description: memory.description || '',
+      });
+      positions = generatePositions(images.length);
+      buildTiles();
+    });
+  }
 })();

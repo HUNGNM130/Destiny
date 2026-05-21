@@ -258,25 +258,55 @@ socket.on("memoryAdded", (memory) => {
 
   const cols = Math.floor((window.innerWidth - 40) / 240) || 3;
   const existing = container.querySelectorAll(".memory-card").length;
-  const card = buildMemoryCard(memory, existing, cols);
+  const card = buildMemoryCard(memory, existing, cols); // buildMemoryCard sets positions[memory.id]
 
   // Animate entrance
   card.style.opacity = "0";
-  card.style.transform += " scale(0.7)";
+  const pos = positions[memory.id] || { rotate: 0 };
+  card.style.transform = `rotate(${pos.rotate}deg) scale(0.7)`;
   container.appendChild(card);
   makeDraggable(card, memory.id, false);
 
   requestAnimationFrame(() => {
     card.style.transition = "opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)";
     card.style.opacity = "1";
-    card.style.transform = `rotate(${positions[memory.id].rotate}deg) scale(1)`;
-    setTimeout(() => { card.style.transition = ""; card.style.transform = `rotate(${positions[memory.id].rotate}deg)`; }, 450);
+    const p = positions[memory.id] || { rotate: 0 };
+    card.style.transform = `rotate(${p.rotate}deg) scale(1)`;
+    setTimeout(() => {
+      card.style.transition = "";
+      const p2 = positions[memory.id] || { rotate: 0 };
+      card.style.transform = `rotate(${p2.rotate}deg)`;
+    }, 450);
   });
 });
 
 socket.on("memoryUpdated", (data) => {
-  // Reload memories to get fresh data including updated mood
-  loadMemories(activeSearchFilters);
+  // Update the card in-place for realtime (no full reload needed)
+  const card = document.querySelector(`.memory-card[data-id="${data.id}"]`);
+  if (!card) { loadMemories(activeSearchFilters); return; }
+  // Update title
+  const titleEl = card.querySelector(".card-title");
+  if (titleEl) titleEl.textContent = data.title || "";
+  // Update date
+  const dateEl = card.querySelector(".card-date");
+  if (dateEl && data.date) {
+    const d = new Date(data.date);
+    dateEl.textContent = d.toLocaleDateString("vi-VN", { day:"2-digit", month:"2-digit", year:"numeric" });
+  }
+  // Update description
+  const descEl = card.querySelector(".card-desc");
+  if (descEl) descEl.textContent = data.description || "";
+  // Update image if changed
+  if (data.image) {
+    let imgEl = card.querySelector(".card-img");
+    if (imgEl) imgEl.src = data.image + "?t=" + Date.now();
+  }
+  // Update mood styling
+  if (data.mood && typeof MOODS !== "undefined") {
+    const moodCfg = MOODS[data.mood] || MOODS.happy;
+    card.style.background = `linear-gradient(135deg, #fff 60%, ${moodCfg.color})`;
+    card.style.borderTop = `3px solid ${moodCfg.accent}`;
+  }
 });
 
 socket.on("memoryMoved", (data) => {
@@ -520,27 +550,32 @@ async function saveMemory() {
     } else {
       const res = await fetch(API_URL, { method:"POST", body:formData });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Server error");
       closeForm();
-      // Don't reload — socket "memoryAdded" will add card to DOM on this machine too
-      // But socket.io on sender won't receive its own broadcast, so add manually:
+      // Server broadcasts "memoryAdded" to all OTHER clients via socket.io.
+      // Sender does NOT receive its own broadcast, so we add the card manually here.
       if (data.memory) {
-        socket.emit("_selfMemoryAdded", data.memory); // won't go anywhere but...
-        // Add card manually on sender side
         const container = document.getElementById("memoryContainer");
         const empty = container.querySelector(".empty-state");
         if (empty) empty.remove();
         const cols = Math.floor((window.innerWidth - 40) / 240) || 3;
         const existing = container.querySelectorAll(".memory-card").length;
-        const card = buildMemoryCard(data.memory, existing, cols);
+        const card = buildMemoryCard(data.memory, existing, cols); // sets positions[id]
+        const pos = positions[data.memory.id] || { rotate: 0 };
         card.style.opacity = "0";
-        card.style.transform += " scale(0.7)";
+        card.style.transform = `rotate(${pos.rotate}deg) scale(0.7)`;
         container.appendChild(card);
         makeDraggable(card, data.memory.id, false);
         requestAnimationFrame(() => {
           card.style.transition = "opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)";
           card.style.opacity = "1";
-          card.style.transform = `rotate(${positions[data.memory.id].rotate}deg) scale(1)`;
-          setTimeout(() => { card.style.transition = ""; card.style.transform = `rotate(${positions[data.memory.id].rotate}deg)`; }, 450);
+          const p = positions[data.memory.id] || { rotate: 0 };
+          card.style.transform = `rotate(${p.rotate}deg) scale(1)`;
+          setTimeout(() => {
+            card.style.transition = "";
+            const p2 = positions[data.memory.id] || { rotate: 0 };
+            card.style.transform = `rotate(${p2.rotate}deg)`;
+          }, 450);
         });
       }
     }

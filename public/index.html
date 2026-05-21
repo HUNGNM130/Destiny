@@ -155,10 +155,10 @@
 
       <div class="form-group">
         <label>Hình ảnh 📷</label>
-        <div class="upload-area">
-          <input type="file" id="image" accept="image/*" onchange="onImageSelected(event)" />
+        <label class="upload-area" for="image" style="display:block;cursor:pointer;">
+          <input type="file" id="image" accept="image/*" onchange="onImageSelected(event)" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;font-size:16px;" />
           <p>Nhấn để chọn ảnh ♥</p>
-        </div>
+        </label>
         <div id="cropperWrapper" style="display:none; margin-top:12px;">
           <div class="cropper-container-box">
             <img id="cropperImg" />

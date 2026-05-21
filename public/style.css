@@ -511,7 +511,11 @@ header p {
 .upload-area:hover { border-color: var(--rose); background: var(--warm); }
 .upload-area input[type="file"] {
   position: absolute; inset: 0;
-  opacity: 0; cursor: pointer; width: 100%;
+  opacity: 0; cursor: pointer;
+  width: 100%; height: 100%;
+  font-size: 16px; /* prevent iOS zoom */
+  -webkit-appearance: none;
+  touch-action: manipulation;
 }
 .upload-area p {
   color: var(--faded);

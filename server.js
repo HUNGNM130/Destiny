@@ -2,8 +2,6 @@ require("dotenv").config();
 const ytdlp = require("yt-dlp-exec");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("ffmpeg-static");
-const fs = require("fs");
-const path = require("path");
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 const cloudinary = require("cloudinary").v2;
@@ -173,15 +171,19 @@ app.put("/memories/:id", uploadImage.single("image"), (req, res) => {
       }
     );
   } else {
-    db.query(
-      "UPDATE memories SET title=?,date=?,description=?,mood=?,location=?,music=? WHERE id=?",
-      [title, date, description, mood||"happy", location||null, music||null, id],
-      (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        io.emit("memoryUpdated", { id: parseInt(id), title, date, description, mood: mood||"happy", location: location||null, music: music||null });
-        res.json({ success: true });
-      }
-    );
+    // No new image — fetch existing image URL to include in broadcast
+    db.query("SELECT image FROM memories WHERE id=?", [id], (err2, rows) => {
+      const existingImage = (!err2 && rows[0]) ? rows[0].image : null;
+      db.query(
+        "UPDATE memories SET title=?,date=?,description=?,mood=?,location=?,music=? WHERE id=?",
+        [title, date, description, mood||"happy", location||null, music||null, id],
+        (err) => {
+          if (err) return res.status(500).json({ error: err.message });
+          io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: existingImage, mood: mood||"happy", location: location||null, music: music||null });
+          res.json({ success: true });
+        }
+      );
+    });
   }
 });
 
