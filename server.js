@@ -143,9 +143,10 @@ app.get("/memories", (req, res) => {
 
 // CREATE memory
 app.post("/memories", uploadImage.single("image"), (req, res) => {
-  // Debug: để tìm lỗi 500 khi upload ảnh
-  // console.log("UPLOAD IMAGE FIELD:", !!req.file, req.file?.originalname);
-  // console.log("CLOUDINARY FILE PATH:", req.file?.path);
+// Debug: để tìm lỗi 500 khi upload ảnh
+  console.log("[UPLOAD] memories/image field present:", !!req.file, "originalname:", req.file?.originalname);
+  console.log("[UPLOAD] memories/image req.file.path:", req.file?.path);
+
 
   const { title, date, description, mood, location, music } = req.body;
   const image = req.file ? req.file.path : null;
