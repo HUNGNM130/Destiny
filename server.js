@@ -240,17 +240,29 @@ app.delete("/memories/:id", (req, res) => {
 });
 
 // UPDATE memory position
-app.patch("/memories/:id/position", (req, res) => {
-  const { x, y, rotate } = req.body;
-  pool.query(
-    "UPDATE memories SET pos_x=$1,pos_y=$2,pos_rotate=$3 WHERE id=$4",
-    [x, y, rotate, req.params.id]
-  )
-    .then(() => {
-      res.json({ success: true });
-      io.emit("memoryMoved", { id: req.params.id, x, y, rotate });
-    })
-    .catch((err) => res.status(500).json({ error: err.message }));
+app.patch("/memories/:id/position", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { x, y, rotate } = req.body;
+
+    await pool.query(
+      `
+      UPDATE memories
+      SET pos_x = $1,
+          pos_y = $2,
+          pos_rotate = $3
+      WHERE id = $4
+      `,
+      [x, y, rotate, id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("POSITION ERROR:", err);
+    res.status(500).json({
+      error: err.message,
+    });
+  }
 });
 
 // GET videos
