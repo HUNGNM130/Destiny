@@ -3,6 +3,13 @@ const API_URL = `${BASE_URL}/memories`;
 const VIDEO_API_URL = `${BASE_URL}/videos`;
 const socket = io(BASE_URL);
 
+// Inject spinner CSS
+(function() {
+  const s = document.createElement("style");
+  s.textContent = "@keyframes spin { to { transform: rotate(360deg); } }";
+  document.head.appendChild(s);
+})();
+
 // ── Flatpickr ──────────────────────────────────────────
 const datePicker = flatpickr("#date", {
   dateFormat: "d/m/Y", allowInput: false, locale: { firstDayOfWeek: 1 }
@@ -249,6 +256,12 @@ function buildMemoryCard(memory, index, cols) {
 
 // ── SOCKET REALTIME ────────────────────────────────────
 socket.on("memoryAdded", (memory) => {
+  // Xoá card loading tạm (nếu có) — chỉ máy upload mới có
+  document.querySelectorAll(".memory-card[data-id^='temp-']").forEach(c => {
+    delete positions[c.dataset.id];
+    c.remove();
+  });
+
   if (document.querySelector(`.memory-card[data-id="${memory.id}"]`)) return;
   const container = document.getElementById("memoryContainer");
   // Remove empty state if present
@@ -541,21 +554,70 @@ async function saveMemory() {
   if (croppedBlob) formData.append("image", croppedBlob, "cropped.jpg");
   else if (document.getElementById("image").files[0]) formData.append("image", document.getElementById("image").files[0]);
 
+  closeForm();
+
   try {
     if (id) {
       await fetch(`${API_URL}/${id}`, { method:"PUT", body:formData });
-      closeForm();
       loadMemories(activeSearchFilters);
     } else {
+      // Hiện card loading ngay lập tức trên máy mình trong khi đợi Cloudinary
+      const tempId = "temp-" + Date.now();
+      showLoadingCard(tempId, title);
+
       const res = await fetch(API_URL, { method:"POST", body:formData });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Server error");
-      closeForm();
-      // socket.on("memoryAdded") sẽ tự nhận và add card cho tất cả kể cả người gửi
+      if (!res.ok) {
+        // Xoá card loading nếu lỗi
+        const tempCard = document.querySelector(`.memory-card[data-id="${tempId}"]`);
+        if (tempCard) { delete positions[tempId]; tempCard.remove(); }
+        throw new Error(data.error || "Server error");
+      }
+      // socket.on("memoryAdded") sẽ tự xoá card loading và hiện card thật cho tất cả máy
     }
   } catch {
     Swal.fire({ icon:"error", title:"Lỗi rồi!", text:"Không thể lưu. Kiểm tra server nhé.", confirmButtonColor:"#8b3a4a" });
   }
+}
+
+// ── Card loading tạm trong khi upload Cloudinary ───────
+function showLoadingCard(tempId, title) {
+  const container = document.getElementById("memoryContainer");
+  const empty = container.querySelector(".empty-state");
+  if (empty) empty.remove();
+
+  const card = document.createElement("div");
+  card.className = "memory-card scrapbook-card";
+  card.dataset.id = tempId;
+
+  const x = 20 + Math.random() * 40;
+  const y = 20 + Math.random() * 40;
+  const rotate = parseFloat((Math.random() * 6 - 3).toFixed(2));
+  positions[tempId] = { x, y, rotate };
+
+  card.style.cssText = `left:${x}px; top:${y}px; transform:rotate(${rotate}deg); z-index:200; background: linear-gradient(135deg, #fff 60%, #fde68a); border-top: 3px solid #f59e0b;`;
+
+  card.innerHTML = `
+    <div class="polaroid-frame" style="display:flex;align-items:center;justify-content:center;min-height:180px;background:#f9f3ee;">
+      <div style="text-align:center;">
+        <div style="width:36px;height:36px;border:3px solid #f0ddd5;border-top-color:#c96a5a;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto;"></div>
+        <div style="margin-top:10px;font-size:12px;color:#bbb;font-family:'Caveat',cursive;">Đang tải ảnh lên... ♥</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-title handwritten">${title}</div>
+    </div>`;
+
+  container.appendChild(card);
+
+  card.style.opacity = "0";
+  card.style.transform = `rotate(${rotate}deg) scale(0.7)`;
+  requestAnimationFrame(() => {
+    card.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+    card.style.opacity = "1";
+    card.style.transform = `rotate(${rotate}deg) scale(1)`;
+    setTimeout(() => card.style.transition = "", 350);
+  });
 }
 async function deleteMemory(id) {
   const result = await Swal.fire({

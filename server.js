@@ -136,9 +136,7 @@ app.get("/memories", (req, res) => {
 // CREATE memory
 app.post("/memories", (req, res) => {
 
-  uploadImage.single("image")(req, res, (uploadErr) => {
-    // Nếu Cloudinary hoặc multer lỗi (sai credentials, file không hỗ trợ, timeout...)
-    // bắt lỗi ở đây thay vì crash toàn bộ request → 500 không rõ lý do
+  uploadImage.single("image")(req, res, async (uploadErr) => {
     if (uploadErr) {
       console.error("[UPLOAD ERROR] Cloudinary/multer failed:", uploadErr.message, uploadErr.http_code || "", uploadErr.stack || "");
       req.file = null;
@@ -150,12 +148,10 @@ app.post("/memories", (req, res) => {
       return res.status(400).json({ error: "Thiếu title hoặc date" });
     }
 
-    // multer-storage-cloudinary@4 trả về req.file.path là public_id (vd: "love-diary/abc123")
-    // hoặc full https URL tuỳ version. Chuẩn hoá về https URL để lưu DB.
+    // Resolve Cloudinary URL — ưu tiên secure_url, fallback path/url
     let image = null;
     if (req.file) {
-      const raw = req.file.secure_url || req.file.path || req.file.url || "";
-      // Nếu đã là URL đầy đủ thì dùng luôn, nếu là public_id thì build URL
+      const raw = req.file.secure_url || req.file.url || req.file.path || "";
       image = raw.startsWith("http")
         ? raw
         : cloudinary.url(raw, { secure: true });
@@ -164,21 +160,20 @@ app.post("/memories", (req, res) => {
     console.log("[UPLOAD] req.file full:", JSON.stringify(req.file, null, 2));
     console.log("[UPLOAD] image URL resolved:", image);
 
-    pool.query(
-      "INSERT INTO memories (title,date,description,image) VALUES ($1,$2,$3,$4) RETURNING id",
-      [title, date, description, image]
-    )
-      .then((r) => {
-        const id = r.rows[0].id;
-        const newMemory = { id, title, date, description, image, pos_x: null, pos_y: null, pos_rotate: null };
-        io.emit("memoryAdded", newMemory);
-        res.json({ success: true, id, memory: newMemory });
-      })
-      .catch((err) => {
-        console.error("[DB ERROR] INSERT memories:", err.message);
-        return res.status(500).json({ error: err.message });
-      });
-
+    try {
+      // RETURNING * để lấy toàn bộ record (kể cả image URL thật) trước khi emit
+      const r = await pool.query(
+        "INSERT INTO memories (title,date,description,image) VALUES ($1,$2,$3,$4) RETURNING *",
+        [title, date, description, image]
+      );
+      const saved = r.rows[0];
+      // Emit 1 lần với data đầy đủ từ DB — cả máy gửi lẫn máy khác đều nhận
+      io.emit("memoryAdded", saved);
+      res.json({ success: true, id: saved.id, memory: saved });
+    } catch (err) {
+      console.error("[DB ERROR] INSERT memories:", err.message);
+      res.status(500).json({ error: err.message });
+    }
   });
 });
 
