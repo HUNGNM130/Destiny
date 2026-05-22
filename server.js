@@ -154,55 +154,80 @@ app.get("/memories", (req, res) => {
 });
 
 // CREATE memory
-app.post("/memories", uploadImage.single("image"), (req, res) => {
-// Debug: để tìm lỗi 500 khi upload ảnh
-  console.log("[UPLOAD] memories/image field present:", !!req.file, "originalname:", req.file?.originalname);
-  console.log("[UPLOAD] memories/image req.file.path:", req.file?.path);
-
-  const { title, date, description, mood, location, music } = req.body;
-  const image = req.file ? req.file.path : null;
-  db.query(
-    "INSERT INTO memories (title,date,description,image,mood,location,music) VALUES (?,?,?,?,?,?,?)",
-    [title, date, description, image, mood||"happy", location||null, music||null],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      // Broadcast new memory to all other clients for realtime add
-      const newMemory = { id: result.insertId, title, date, description, image, mood: mood||"happy", location: location||null, music: music||null, pos_x: null, pos_y: null, pos_rotate: null };
-      io.emit("memoryAdded", newMemory);
-      res.json({ success: true, id: result.insertId, memory: newMemory });
+app.post("/memories", (req, res) => {
+  uploadImage.single("image")(req, res, (uploadErr) => {
+    // Nếu Cloudinary hoặc multer lỗi (sai credentials, file không hỗ trợ, timeout...)
+    // bắt lỗi ở đây thay vì crash toàn bộ request → 500 không rõ lý do
+    if (uploadErr) {
+      console.error("[UPLOAD ERROR] Cloudinary/multer failed:", uploadErr.message);
+      // Vẫn cho phép lưu memory không có ảnh nếu upload lỗi
+      // (hoặc return lỗi nếu muốn bắt buộc có ảnh)
+      req.file = null;
     }
-  );
+
+    const { title, date, description, mood, location, music } = req.body;
+
+    if (!title || !date) {
+      return res.status(400).json({ error: "Thiếu title hoặc date" });
+    }
+
+    // Cloudinary trả về secure_url trong req.file.path (qua multer-storage-cloudinary)
+    const image = req.file ? (req.file.path || req.file.secure_url || null) : null;
+
+    console.log("[UPLOAD] image URL:", image, "| uploadErr:", uploadErr?.message || "none");
+
+    db.query(
+      "INSERT INTO memories (title,date,description,image,mood,location,music) VALUES (?,?,?,?,?,?,?)",
+      [title, date, description, image, mood||"happy", location||null, music||null],
+      (err, result) => {
+        if (err) {
+          console.error("[DB ERROR] INSERT memories:", err.message);
+          return res.status(500).json({ error: err.message });
+        }
+        const newMemory = { id: result.insertId, title, date, description, image, mood: mood||"happy", location: location||null, music: music||null, pos_x: null, pos_y: null, pos_rotate: null };
+        io.emit("memoryAdded", newMemory);
+        res.json({ success: true, id: result.insertId, memory: newMemory });
+      }
+    );
+  });
 });
 
 // UPDATE memory
-app.put("/memories/:id", uploadImage.single("image"), (req, res) => {
-  const { title, date, description, mood, location, music } = req.body;
-  const { id } = req.params;
-  if (req.file) {
-    db.query(
-      "UPDATE memories SET title=?,date=?,description=?,image=?,mood=?,location=?,music=? WHERE id=?",
-      [title, date, description, req.file.path, mood||"happy", location||null, music||null, id],
-      (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: req.file.path, mood: mood||"happy", location: location||null, music: music||null });
-        res.json({ success: true });
-      }
-    );
-  } else {
-    // No new image — fetch existing image URL to include in broadcast
-    db.query("SELECT image FROM memories WHERE id=?", [id], (err2, rows) => {
-      const existingImage = (!err2 && rows[0]) ? rows[0].image : null;
+app.put("/memories/:id", (req, res) => {
+  uploadImage.single("image")(req, res, (uploadErr) => {
+    if (uploadErr) {
+      console.error("[UPLOAD ERROR] PUT memories Cloudinary failed:", uploadErr.message);
+      req.file = null;
+    }
+    const { title, date, description, mood, location, music } = req.body;
+    const { id } = req.params;
+    const imageUrl = req.file ? (req.file.path || req.file.secure_url || null) : null;
+    if (imageUrl) {
       db.query(
-        "UPDATE memories SET title=?,date=?,description=?,mood=?,location=?,music=? WHERE id=?",
-        [title, date, description, mood||"happy", location||null, music||null, id],
+        "UPDATE memories SET title=?,date=?,description=?,image=?,mood=?,location=?,music=? WHERE id=?",
+        [title, date, description, imageUrl, mood||"happy", location||null, music||null, id],
         (err) => {
           if (err) return res.status(500).json({ error: err.message });
-          io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: existingImage, mood: mood||"happy", location: location||null, music: music||null });
+          io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: imageUrl, mood: mood||"happy", location: location||null, music: music||null });
           res.json({ success: true });
         }
       );
-    });
-  }
+    } else {
+      // No new image — fetch existing image URL to include in broadcast
+      db.query("SELECT image FROM memories WHERE id=?", [id], (err2, rows) => {
+        const existingImage = (!err2 && rows[0]) ? rows[0].image : null;
+        db.query(
+          "UPDATE memories SET title=?,date=?,description=?,mood=?,location=?,music=? WHERE id=?",
+          [title, date, description, mood||"happy", location||null, music||null, id],
+          (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: existingImage, mood: mood||"happy", location: location||null, music: music||null });
+            res.json({ success: true });
+          }
+        );
+      });
+    }
+  });
 });
 
 // DELETE memory
