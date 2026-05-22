@@ -110,8 +110,20 @@ if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
 if (!fs.existsSync("uploads-video")) fs.mkdirSync("uploads-video");
 
 const imageStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: { folder: "love-diary", allowed_formats: ["jpg","jpeg","png","webp"] }
+  cloudinary,
+  params: async (req, file) => ({
+    folder: "love-diary",
+    resource_type: "image",
+    allowed_formats: [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp",
+      "gif",
+      "heic",
+      "heif"
+    ]
+  })
 });
 const videoStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads-video/"),
