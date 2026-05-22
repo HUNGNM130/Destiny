@@ -249,9 +249,7 @@ function buildMemoryCard(memory, index, cols) {
 
 // ── SOCKET REALTIME ────────────────────────────────────
 socket.on("memoryAdded", (memory) => {
-  // Dùng setTimeout nhỏ để tránh race với add thủ công của người gửi
-  setTimeout(() => {
-    if (document.querySelector(`.memory-card[data-id="${memory.id}"]`)) return;
+  if (document.querySelector(`.memory-card[data-id="${memory.id}"]`)) return;
   const container = document.getElementById("memoryContainer");
   // Remove empty state if present
   const empty = container.querySelector(".empty-state");
@@ -259,7 +257,7 @@ socket.on("memoryAdded", (memory) => {
 
   const cols = Math.floor((window.innerWidth - 40) / 240) || 3;
   const existing = container.querySelectorAll(".memory-card").length;
-  const card = buildMemoryCard(memory, existing, cols); // buildMemoryCard sets positions[memory.id]
+  const card = buildMemoryCard(memory, existing, cols);
 
   // Animate entrance
   card.style.opacity = "0";
@@ -279,7 +277,6 @@ socket.on("memoryAdded", (memory) => {
       card.style.transform = `rotate(${p2.rotate}deg)`;
     }, 450);
   });
-  }, 200);
 });
 
 socket.on("memoryUpdated", (data) => {
@@ -554,32 +551,7 @@ async function saveMemory() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Server error");
       closeForm();
-      // Server broadcasts "memoryAdded" to all OTHER clients via socket.io.
-      // Sender does NOT receive its own broadcast, so we add the card manually here.
-      if (data.memory) {
-        const container = document.getElementById("memoryContainer");
-        const empty = container.querySelector(".empty-state");
-        if (empty) empty.remove();
-        const cols = Math.floor((window.innerWidth - 40) / 240) || 3;
-        const existing = container.querySelectorAll(".memory-card").length;
-        const card = buildMemoryCard(data.memory, existing, cols); // sets positions[id]
-        const pos = positions[data.memory.id] || { rotate: 0 };
-        card.style.opacity = "0";
-        card.style.transform = `rotate(${pos.rotate}deg) scale(0.7)`;
-        container.appendChild(card);
-        makeDraggable(card, data.memory.id, false);
-        requestAnimationFrame(() => {
-          card.style.transition = "opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)";
-          card.style.opacity = "1";
-          const p = positions[data.memory.id] || { rotate: 0 };
-          card.style.transform = `rotate(${p.rotate}deg) scale(1)`;
-          setTimeout(() => {
-            card.style.transition = "";
-            const p2 = positions[data.memory.id] || { rotate: 0 };
-            card.style.transform = `rotate(${p2.rotate}deg)`;
-          }, 450);
-        });
-      }
+      // socket.on("memoryAdded") sẽ tự nhận và add card cho tất cả kể cả người gửi
     }
   } catch {
     Swal.fire({ icon:"error", title:"Lỗi rồi!", text:"Không thể lưu. Kiểm tra server nhé.", confirmButtonColor:"#8b3a4a" });

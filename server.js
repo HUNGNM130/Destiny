@@ -70,7 +70,7 @@ const pool = new Pool({
         title VARCHAR(255) NOT NULL,
         date DATE NOT NULL,
         description TEXT,
-        image VARCHAR(255),
+        image TEXT,
         mood VARCHAR(50) DEFAULT 'happy',
         location VARCHAR(255) DEFAULT NULL,
         music VARCHAR(255) DEFAULT NULL,
@@ -80,6 +80,8 @@ const pool = new Pool({
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    // Migrate bảng cũ: đổi image từ VARCHAR(255) sang TEXT nếu chưa đổi
+    await pool.query(`ALTER TABLE memories ALTER COLUMN image TYPE TEXT`).catch(() => {});
     await pool.query(`
       CREATE TABLE IF NOT EXISTS videos (
         id SERIAL PRIMARY KEY,
@@ -138,9 +140,7 @@ app.post("/memories", (req, res) => {
     // Nếu Cloudinary hoặc multer lỗi (sai credentials, file không hỗ trợ, timeout...)
     // bắt lỗi ở đây thay vì crash toàn bộ request → 500 không rõ lý do
     if (uploadErr) {
-      console.error("[UPLOAD ERROR] Cloudinary/multer failed:", uploadErr.message, uploadErr.http_code || "");
-      // Vẫn cho phép lưu memory không có ảnh nếu upload lỗi
-      // (hoặc return lỗi nếu muốn bắt buộc có ảnh)
+      console.error("[UPLOAD ERROR] Cloudinary/multer failed:", uploadErr.message, uploadErr.http_code || "", uploadErr.stack || "");
       req.file = null;
     }
 
@@ -171,7 +171,7 @@ app.post("/memories", (req, res) => {
       .then((r) => {
         const id = r.rows[0].id;
         const newMemory = { id, title, date, description, image, pos_x: null, pos_y: null, pos_rotate: null };
-        socket.broadcast.emit("memoryAdded", newMemory);
+        io.emit("memoryAdded", newMemory);
         res.json({ success: true, id, memory: newMemory });
       })
       .catch((err) => {
