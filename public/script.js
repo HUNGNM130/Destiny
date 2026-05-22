@@ -249,8 +249,9 @@ function buildMemoryCard(memory, index, cols) {
 
 // ── SOCKET REALTIME ────────────────────────────────────
 socket.on("memoryAdded", (memory) => {
-  // Only add if not already in DOM
-  if (document.querySelector(`.memory-card[data-id="${memory.id}"]`)) return;
+  // Dùng setTimeout nhỏ để tránh race với add thủ công của người gửi
+  setTimeout(() => {
+    if (document.querySelector(`.memory-card[data-id="${memory.id}"]`)) return;
   const container = document.getElementById("memoryContainer");
   // Remove empty state if present
   const empty = container.querySelector(".empty-state");
@@ -278,6 +279,7 @@ socket.on("memoryAdded", (memory) => {
       card.style.transform = `rotate(${p2.rotate}deg)`;
     }, 450);
   });
+  }, 200);
 });
 
 socket.on("memoryUpdated", (data) => {

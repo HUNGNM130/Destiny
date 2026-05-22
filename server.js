@@ -171,7 +171,7 @@ app.post("/memories", (req, res) => {
       .then((r) => {
         const id = r.rows[0].id;
         const newMemory = { id, title, date, description, image, pos_x: null, pos_y: null, pos_rotate: null };
-        io.emit("memoryAdded", newMemory);
+        socket.broadcast.emit("memoryAdded", newMemory);
         res.json({ success: true, id, memory: newMemory });
       })
       .catch((err) => {
