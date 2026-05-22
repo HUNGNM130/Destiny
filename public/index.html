@@ -56,47 +56,7 @@
   <div id="pagePhotos">
     <div class="page-toolbar">
       <button class="btn-add" onclick="openForm()">＋ Thêm khoảnh khắc</button>
-      <button class="btn-search" onclick="toggleSearch()">📅 Lọc theo thời gian</button>
     </div>
-
-    <!-- Filter Panel (time-based) -->
-    <div id="searchPanel" class="search-panel">
-      <div class="search-panel-inner">
-        <h3 class="search-title">📅 Lọc theo thời gian</h3>
-        <div class="filter-mode-tabs">
-          <button class="filter-mode-btn active" id="modeDay" onclick="switchFilterMode('day')">📌 Chọn ngày</button>
-          <button class="filter-mode-btn" id="modeRange" onclick="switchFilterMode('range')">📆 Khoảng thời gian</button>
-        </div>
-
-        <!-- Single day mode -->
-        <div id="filterModeDay" class="filter-mode-content">
-          <div class="search-field">
-            <label>📅 Ngày cụ thể</label>
-            <input type="text" id="searchDate" placeholder="Chọn một ngày..." readonly />
-          </div>
-        </div>
-
-        <!-- Date range mode -->
-        <div id="filterModeRange" class="filter-mode-content" style="display:none">
-          <div class="search-grid-2">
-            <div class="search-field">
-              <label>📅 Từ ngày</label>
-              <input type="text" id="searchDateFrom" placeholder="Từ ngày..." readonly />
-            </div>
-            <div class="search-field">
-              <label>📅 Đến ngày</label>
-              <input type="text" id="searchDateTo" placeholder="Đến ngày..." readonly />
-            </div>
-          </div>
-        </div>
-
-        <div class="search-actions">
-          <button class="btn-search-apply" onclick="applySearch()">🔍 Lọc</button>
-          <button class="btn-search-clear" onclick="clearSearch()">✕ Xoá bộ lọc</button>
-        </div>
-      </div>
-    </div>
-
     <div id="memoryContainer">
       <div class="loading">đang tải những kỷ niệm... ♥</div>
     </div>

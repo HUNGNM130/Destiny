@@ -9,10 +9,6 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
-console.log("HOST:", process.env.DB_HOST);
-console.log("USER:", process.env.DB_USER);
-console.log("PORT:", process.env.DB_PORT);
-
 const express = require("express");
 const { Pool } = require("pg");
 
@@ -130,24 +126,11 @@ const uploadVideo = multer({ storage: videoStorage });
 app.get("/", (req, res) => res.json({ success: true, message: "Love Diary API running" }));
 app.get("/view", (req, res) => res.sendFile(path.join(__dirname, "public", "view.html")));
 
-// GET memories (with search filters)
 app.get("/memories", (req, res) => {
-  let query = "SELECT * FROM memories WHERE 1=1";
-  const params = [];
-  if (req.query.mood)      { query += " AND mood = $" + (params.length+1); params.push(req.query.mood); }
-  if (req.query.location)  { query += " AND location LIKE $" + (params.length+1); params.push(`%${req.query.location}%`); }
-  if (req.query.music)     { query += " AND music LIKE $" + (params.length+1); params.push(`%${req.query.music}%`); }
-  if (req.query.date)      { query += " AND date = $" + (params.length+1); params.push(req.query.date); }
-  if (req.query.date_from) { query += " AND date >= $" + (params.length+1); params.push(req.query.date_from); }
-  if (req.query.date_to)   { query += " AND date <= $" + (params.length+1); params.push(req.query.date_to); }
-
-  query += " ORDER BY date DESC";
-  pool.query(query, params)
+  pool.query("SELECT * FROM memories ORDER BY date DESC")
     .then((r) => res.json(r.rows))
     .catch((err) => res.status(500).json({ error: err.message }));
 });
-
-
 // CREATE memory
 app.post("/memories", (req, res) => {
 
@@ -161,7 +144,7 @@ app.post("/memories", (req, res) => {
       req.file = null;
     }
 
-    const { title, date, description, mood, location, music } = req.body;
+    const { title, date, description } = req.body;
 
     if (!title || !date) {
       return res.status(400).json({ error: "Thiếu title hoặc date" });
@@ -182,12 +165,12 @@ app.post("/memories", (req, res) => {
     console.log("[UPLOAD] image URL resolved:", image);
 
     pool.query(
-      "INSERT INTO memories (title,date,description,image,mood,location,music) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id",
-      [title, date, description, image, mood||"happy", location||null, music||null]
+      "INSERT INTO memories (title,date,description,image) VALUES ($1,$2,$3,$4) RETURNING id",
+      [title, date, description, image]
     )
       .then((r) => {
         const id = r.rows[0].id;
-        const newMemory = { id, title, date, description, image, mood: mood||"happy", location: location||null, music: music||null, pos_x: null, pos_y: null, pos_rotate: null };
+        const newMemory = { id, title, date, description, image, pos_x: null, pos_y: null, pos_rotate: null };
         io.emit("memoryAdded", newMemory);
         res.json({ success: true, id, memory: newMemory });
       })
@@ -207,7 +190,7 @@ app.put("/memories/:id", (req, res) => {
       console.error("[UPLOAD ERROR] PUT memories Cloudinary failed:", uploadErr.message);
       req.file = null;
     }
-    const { title, date, description, mood, location, music } = req.body;
+    const { title, date, description } = req.body;
     const { id } = req.params;
     let imageUrl = null;
     if (req.file) {
@@ -217,11 +200,11 @@ app.put("/memories/:id", (req, res) => {
     console.log("[PUT UPLOAD] req.file:", JSON.stringify(req.file, null, 2));
     if (imageUrl) {
       pool.query(
-        "UPDATE memories SET title=$1,date=$2,description=$3,image=$4,mood=$5,location=$6,music=$7 WHERE id=$8",
-        [title, date, description, imageUrl, mood||"happy", location||null, music||null, id]
+        "UPDATE memories SET title=$1,date=$2,description=$3,image=$4 WHERE id=$5",
+        [title, date, description, imageUrl, id]
       )
         .then(() => {
-          io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: imageUrl, mood: mood||"happy", location: location||null, music: music||null });
+          io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: imageUrl });
           res.json({ success: true });
         })
         .catch((err) => res.status(500).json({ error: err.message }));
@@ -233,12 +216,12 @@ app.put("/memories/:id", (req, res) => {
         .then((r) => {
           const existingImage = (r.rows && r.rows[0]) ? r.rows[0].image : null;
           return pool.query(
-            "UPDATE memories SET title=$1,date=$2,description=$3,mood=$4,location=$5,music=$6 WHERE id=$7",
-            [title, date, description, mood||"happy", location||null, music||null, id]
-          ).then(() => existingImage);
+  "UPDATE memories SET title=$1,date=$2,description=$3 WHERE id=$4",
+  [title, date, description, id]
+).then(() => existingImage);
         })
         .then((existingImage) => {
-          io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: existingImage, mood: mood||"happy", location: location||null, music: music||null });
+          io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: existingImage });
           res.json({ success: true });
         })
         .catch((err) => res.status(500).json({ error: err.message }));
