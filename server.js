@@ -51,6 +51,10 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/videos-file", express.static(path.join(__dirname, "uploads-video")));
 
+// Serve React build (client/dist) — đặt sau API routes được define bên dưới
+// nhưng static files phải khai báo trước để assets (JS/CSS) được serve đúng
+app.use(express.static(path.join(__dirname, "client", "dist")));
+
 console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
 const pool = new Pool({
@@ -408,6 +412,16 @@ app.post("/youtube-mp3", async (req, res) => {
     });
   }
 });
+// SPA fallback — mọi route không phải API sẽ trả về React index.html
+app.get("*", (req, res) => {
+  const reactIndex = path.join(__dirname, "client", "dist", "index.html");
+  if (fs.existsSync(reactIndex)) {
+    res.sendFile(reactIndex);
+  } else {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
+  }
+});
+
 process.on("uncaughtException", console.error);
 process.on("unhandledRejection", console.error);
 server.listen(PORT, "0.0.0.0", () => { console.log(`🚀 Server running on port ${PORT}`); });

@@ -2,3 +2,5 @@ node_modules
 .env
 uploads
 uploads-video
+client/node_modules
+client/dist

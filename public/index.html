@@ -42,6 +42,10 @@
           <div class="dock-icon-box">🎬</div>
           <div class="dock-label">Video</div>
         </div>
+        <div class="dock-item" id="tabCamera" data-tab="camera">
+          <div class="dock-icon-box">📸</div>
+          <div class="dock-label">Camera</div>
+        </div>
         <div class="dock-separator"></div>
         <div class="dock-item" id="tabGallery" data-tab="gallery">
           <div class="dock-icon-box">✨</div>
@@ -70,6 +74,113 @@
     <div id="videoContainer">
       <div class="loading">đang tải video... ♥</div>
     </div>
+  </div>
+
+  <!-- Tab Camera (Locket style) -->
+  <div id="pageCamera" style="display:none;">
+
+    <!-- FULLSCREEN CAMERA SHELL -->
+    <div id="locShell">
+
+      <!-- ① Viewfinder: chiếm toàn bộ -->
+      <div id="locViewfinder">
+        <video id="locVideo" autoplay muted playsinline></video>
+        <canvas id="locCanvas" style="display:none;"></canvas>
+
+        <!-- Preview sau chụp -->
+        <div id="locPreviewOverlay" style="display:none;">
+          <img id="locPreviewImg" src="" alt="preview"/>
+        </div>
+
+        <!-- Flash -->
+        <div id="locFlash"></div>
+
+        <!-- Frame viền -->
+        <div id="locFrameOverlay"></div>
+
+        <!-- Countdown badge -->
+        <div id="locTimerBadge" style="display:none;">3</div>
+
+        <!-- Nút flip — nằm trong viewfinder góc phải -->
+        <button id="locFlipBtn" aria-label="Lật camera">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-3.44"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- ② Filter strip — thanh cuộn filter -->
+      <div id="locFilterStrip">
+        <button class="loc-filter-chip active" data-filter="none">🌿 Normal</button>
+        <button class="loc-filter-chip" data-filter="warm">🌅 Warm</button>
+        <button class="loc-filter-chip" data-filter="cool">❄️ Cool</button>
+        <button class="loc-filter-chip" data-filter="rosy">🌸 Rosy</button>
+        <button class="loc-filter-chip" data-filter="vintage">📜 Vintage</button>
+        <button class="loc-filter-chip" data-filter="bw">🖤 B&W</button>
+        <button class="loc-filter-chip" data-filter="dreamy">✨ Dreamy</button>
+      </div>
+
+      <!-- ③ Controls bar: timer | shutter | gallery — ghim đáy -->
+      <div id="locControls">
+
+        <!-- Timer -->
+        <button class="loc-side-btn" id="locTimerBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 3"/><path d="M9 3h6M12 3v2"/>
+          </svg>
+          <span id="locTimerLabel">Tắt</span>
+        </button>
+
+        <!-- SHUTTER -->
+        <button id="locShutter" aria-label="Chụp ảnh">
+          <div id="locShutterRing"></div>
+        </button>
+
+        <!-- Gallery -->
+        <button class="loc-side-btn" id="locGalleryBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <span>Thư viện</span>
+        </button>
+        <input type="file" id="locGalleryInput" accept="image/*" style="display:none;">
+      </div>
+
+      <!-- ④ Preview controls — hiện sau chụp -->
+      <div id="locPreviewControls" style="display:none;">
+        <button class="loc-pv-btn" id="locRetakeBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 .49-3.44"/>
+          </svg>
+          Chụp lại
+        </button>
+        <button class="loc-pv-btn primary" id="locSaveBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Dùng ảnh này
+        </button>
+      </div>
+
+      <!-- ⑤ Caption sheet — slide up từ dưới sau khi bấm "Dùng ảnh" -->
+      <div id="locCaptionSheet" style="display:none;">
+        <div id="locCaptionThumb">
+          <img id="locCaptionThumbImg" src="" alt=""/>
+        </div>
+        <div id="locCaptionFields">
+          <input type="text" id="locCapTitle" placeholder="Khoảnh khắc này... ♥" maxlength="80"/>
+          <input type="text" id="locCapDate" placeholder="dd/mm/yyyy" readonly/>
+          <textarea id="locCapDesc" rows="2" placeholder="Viết gì đó thật dễ thương nhé..."></textarea>
+        </div>
+        <div id="locCaptionActions">
+          <button id="locCancelCaption">← Quay lại</button>
+          <button id="locConfirmSave">Lưu vào Kỷ niệm ♥</button>
+        </div>
+      </div>
+
+    </div><!-- /locShell -->
   </div>
 
   <!-- Tab tập chính – sphere gallery -->
