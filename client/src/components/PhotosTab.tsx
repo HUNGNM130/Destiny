@@ -16,7 +16,10 @@ const TAPE_COLORS = ['rgba(255,230,140,0.8)','rgba(200,200,255,0.7)','rgba(255,2
 const STICKERS: Record<string, string> = { happy:'🌸', sad:'🌧️', miss:'🌙', anniversary:'💌' };
 
 function getInitialPos(item: Memory, index: number, cols: number, containerWidth: number) {
-  if (item.pos_x != null) return { x: item.pos_x!, y: item.pos_y!, rotate: item.pos_rotate! };
+  // Always prefer server-saved position — never override with computed layout
+  if (item.pos_x != null && item.pos_y != null) {
+    return { x: item.pos_x!, y: item.pos_y!, rotate: item.pos_rotate ?? 0 };
+  }
   const colWidth = Math.floor((containerWidth - 40) / cols);
   const c = index % cols, r = Math.floor(index / cols);
   const seed = (item.id || index) % 7;
@@ -42,7 +45,10 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
   const [searchTo, setSearchTo] = useState('');
 
   const [containerWidth, setContainerWidth] = useState(window.innerWidth);
+  // cols is only used for initial layout of unsaved cards — don't re-render on every resize
   const cols = Math.max(1, Math.floor((containerWidth - 40) / 240));
+  const colsRef = useRef(cols);
+  colsRef.current = cols; // keep in sync without triggering re-render
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
@@ -159,7 +165,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     memories.forEach((memory, index) => {
       const mood = memory.mood || 'happy';
       const moodCfg = MOODS[mood] || MOODS.happy;
-      const pos = getInitialPos(memory, index, cols, containerWidth);
+      const pos = getInitialPos(memory, index, colsRef.current, containerWidth);
       positionsRef.current[String(memory.id)] = pos;
 
       const tapeColor = TAPE_COLORS[memory.id % TAPE_COLORS.length];
@@ -221,7 +227,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
         }, 450);
       });
     });
-  }, [memories, loading, cols]);
+  }, [memories, loading]);
 
   return (
     <div id="pagePhotos">
