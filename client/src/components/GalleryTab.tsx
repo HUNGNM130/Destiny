@@ -9,7 +9,7 @@ interface WorldPos { x: number; y: number; z: number; scale: number; zIndex: num
 const CFG = {
   containerSize: 420, sphereRadius: 175, dragSensitivity: 0.5,
   momentumDecay: 0.95, maxRotSpeed: 5, baseImageScale: 0.13,
-  hoverScale: 1.25, perspective: 1000, autoRotate: true, autoRotateSpeed: 0.02,
+  hoverScale: 1.25, perspective: 1000, autoRotate: true, autoRotateSpeed: 0.3,
 };
 
 function generatePositions(n: number): SpherePos[] {
