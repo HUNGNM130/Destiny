@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Video } from '../types';
 import { BASE_URL, VIDEO_API_URL } from '../App';
 
@@ -11,14 +11,15 @@ interface Props {
   onPlay: (src: string, title?: string) => void;
 }
 
-function getInitialPos(item: Video, index: number, cols: number) {
+function getInitialPos(item: Video, index: number, cols: number, containerWidth: number) {
   if (item.pos_x != null) return { x: item.pos_x!, y: item.pos_y!, rotate: item.pos_rotate! };
+  const colWidth = Math.floor((containerWidth - 40) / cols);
   const c = index % cols, r = Math.floor(index / cols);
   const seed = (item.id || index) % 7;
   const offsetX = [-8,4,-5,9,-3,6,-7][seed];
   const offsetY = [5,-6,8,-4,7,-9,3][seed];
   const rotates = [-3.5,2.1,-1.8,4.2,-2.7,1.5,-4.0];
-  return { x: 20 + c * 240 + offsetX, y: 20 + r * 340 + offsetY, rotate: rotates[seed] };
+  return { x: 20 + c * colWidth + offsetX, y: 20 + r * 340 + offsetY, rotate: rotates[seed] };
 }
 
 export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: Props) {
@@ -27,7 +28,16 @@ export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: 
   const draggableRef = useRef<Set<string>>(new Set());
   const dragStateRef = useRef<{ card: HTMLElement; id: string; startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
 
-  const cols = Math.max(1, Math.floor((window.innerWidth - 40) / 260));
+  const [containerWidth, setContainerWidth] = useState(window.innerWidth);
+  const cols = Math.max(1, Math.floor((containerWidth - 40) / 260));
+
+  useEffect(() => {
+    const obs = new ResizeObserver(entries => {
+      for (const e of entries) setContainerWidth(e.contentRect.width);
+    });
+    if (containerRef.current) obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, []);
 
   const savePosition = async (id: string) => {
     const p = positionsRef.current[id];
@@ -116,7 +126,7 @@ export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: 
     container.style.minHeight = (Math.ceil(videos.length / cols) * 360 + 100) + 'px';
 
     videos.forEach((video, index) => {
-      const pos = getInitialPos(video, index, cols);
+      const pos = getInitialPos(video, index, cols, containerWidth);
       positionsRef.current[String(video.id)] = pos;
 
       const videoSrc = video.url || (video.filename ? `${BASE_URL}/videos-file/${video.filename}` : '');
