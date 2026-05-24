@@ -81,7 +81,6 @@ export function MemoryFormModal({ editing, onClose, onSaved }: Props) {
       }) as import('cropperjs');
     };
   }, 50);
-};
     };
     reader.readAsDataURL(file);
   };
