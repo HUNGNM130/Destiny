@@ -30,9 +30,14 @@ export function Header() {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [showCursor, pos]);
 
+  const days = getDaysInLove();
+
   return (
     <header>
-      <div className="header-hearts">♥ ♥ ♥</div>
+      <div className="header-badge">
+        ♥ &nbsp;{days} ngày bên nhau
+      </div>
+      <div className="header-hearts">· · ·</div>
       <h1
         style={{ cursor: showCursor ? 'none' : undefined }}
         onMouseEnter={() => setShowCursor(true)}
@@ -48,7 +53,7 @@ export function Header() {
           style={{ transform: `translate(${curPos.x}px, ${curPos.y}px) translate(-50%, -50%)` }}
         >
           <div className="mc-inner-circle" style={{ transform: `translate(-50%, -50%) rotate(${(curPos.x - pos.x) * -0.08}deg)` }}>
-            <div className="mc-days-num">{getDaysInLove()}</div>
+            <div className="mc-days-num">{days}</div>
             <div className="mc-days-label">ngày ♥</div>
           </div>
         </div>
