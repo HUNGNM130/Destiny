@@ -1103,3 +1103,221 @@ video.mirrored { transform: scaleX(-1); }
 .sa-toast-error   { background: linear-gradient(135deg, rgba(150,44,56,0.92), rgba(188,72,84,0.92)); }
 .sa-toast-warning { background: linear-gradient(135deg, rgba(170,110,48,0.92), rgba(210,148,68,0.92)); }
 .sa-toast-info    { background: linear-gradient(135deg, rgba(110,72,170,0.92), rgba(150,112,210,0.92)); }
+
+/* ════════════════════════════════════════════
+   JOLY UI DOCK — macOS magnification dock
+════════════════════════════════════════════ */
+.jd-wrap {
+  display: flex; justify-content: center;
+  margin: 0 auto 20px; padding: 0 16px;
+  animation: fadeInUp 0.8s ease both 0.2s; opacity: 0;
+  animation-fill-mode: both;
+}
+
+.jd-dock {
+  display: flex; align-items: flex-end; gap: 8px;
+  background: rgba(255,248,245,0.78);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border-radius: 24px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,0.85);
+  box-shadow:
+    0 4px 28px rgba(61,26,38,0.10),
+    0 1px 0 rgba(255,255,255,0.95) inset;
+  position: relative;
+  height: 78px; /* reserve space for magnification */
+}
+
+.jd-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: rgba(255,248,245,0.65);
+  border: 1px solid rgba(255,255,255,0.70);
+  box-shadow: 0 2px 8px rgba(61,26,38,0.10);
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  flex-shrink: 0;
+  user-select: none;
+  overflow: visible;
+}
+.jd-item:hover, .jd-item.active {
+  background: rgba(255,248,245,0.95);
+  box-shadow: 0 4px 18px rgba(61,26,38,0.14);
+}
+.jd-item.active {
+  background: rgba(255,240,244,0.95);
+  border-color: rgba(201,123,138,0.30);
+}
+
+.jd-emoji {
+  font-size: 1.5rem; line-height: 1;
+  /* emoji scales with the item container automatically */
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+/* Active indicator dot */
+.jd-dot {
+  position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--rose); box-shadow: 0 0 6px rgba(201,123,138,0.6);
+}
+
+/* Tooltip label — appears above on hover via JS opacity */
+.jd-label {
+  position: absolute; bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(61,26,38,0.90); backdrop-filter: blur(10px);
+  color: white; font-family: var(--font-body); font-size: 0.74rem; font-weight: 500;
+  padding: 4px 10px; border-radius: 8px;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.20);
+}
+.jd-label::after {
+  content: '';
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(61,26,38,0.90);
+}
+.jd-item:hover .jd-label { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ════════════════════════════════════════════
+   MAGNETIC TEXT (Morphing Cursor) — Header
+════════════════════════════════════════════ */
+.mc-container {
+  position: relative; display: inline-flex;
+  align-items: center; justify-content: center;
+  cursor: none; user-select: none;
+  margin: 4px 0;
+}
+
+.mc-base-text {
+  font-family: var(--font-display);
+  font-size: 3.8rem; font-weight: 400; font-style: italic;
+  color: var(--plum); margin: 0;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #3d1a26 0%, #8c4a5e 50%, #3d1a26 100%);
+  background-clip: text; -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  user-select: none;
+  /* prevent layout shift */
+  position: relative; z-index: 0;
+}
+
+.mc-circle {
+  position: absolute; top: 0; left: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--rose-deep), var(--rose));
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+  /* will-change for GPU compositing */
+  will-change: transform, width, height;
+  box-shadow: 0 0 32px rgba(201,123,138,0.40);
+}
+
+.mc-inner {
+  position: absolute; top: 50%; left: 50%;
+  display: flex; align-items: center; justify-content: center;
+  will-change: transform;
+  flex-direction: column; gap: 2px;
+}
+
+.mc-hover-content {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  color: white; text-align: center;
+}
+
+.mc-days-big {
+  font-family: var(--font-hand);
+  font-size: 2.4rem; font-weight: 700; line-height: 1;
+  color: white; text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.mc-days-label {
+  font-family: var(--font-hand);
+  font-size: 1rem; color: rgba(255,255,255,0.88); letter-spacing: 0.3px;
+}
+
+/* ════════════════════════════════════════════
+   JOLY UI MODAL (sweetAlert / sweetConfirm)
+════════════════════════════════════════════ */
+.jm-overlay {
+  position: fixed; inset: 0; z-index: 99990;
+  background: rgba(30,8,18,0.48);
+  backdrop-filter: blur(12px) saturate(1.3);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+.jm-card {
+  background: rgba(253,250,248,1);
+  border-radius: 28px;
+  padding: 40px 32px 32px;
+  width: 100%; max-width: 360px;
+  text-align: center;
+  box-shadow:
+    0 32px 72px rgba(61,26,38,0.22),
+    0 0 0 1px rgba(201,123,138,0.08),
+    0 1px 0 rgba(255,255,255,0.95) inset;
+  opacity: 0;
+  transform: scale(0.86) translateY(16px);
+  transition: opacity 0.32s cubic-bezier(0.34,1.4,0.64,1), transform 0.32s cubic-bezier(0.34,1.4,0.64,1);
+}
+
+.jm-icon-wrap {
+  width: 72px; height: 72px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 18px; font-size: 0;
+}
+
+.jm-icon {
+  font-size: 1.8rem; font-weight: 700;
+  font-family: var(--font-body);
+  animation: saIconPop 0.45s var(--ease-bounce) both 0.12s;
+}
+
+.jm-title {
+  font-family: var(--font-display);
+  font-size: 1.55rem; font-weight: 400; font-style: italic;
+  color: var(--plum); margin: 0 0 8px; letter-spacing: 0.3px;
+}
+
+.jm-text {
+  font-family: var(--font-hand); color: var(--plum-soft);
+  font-size: 1.05rem; margin: 0 0 22px; line-height: 1.5; opacity: 0.88;
+}
+
+.jm-btn {
+  border: none; border-radius: 14px;
+  font-family: var(--font-body); font-size: 0.95rem; font-weight: 500;
+  padding: 11px 22px; cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.15s;
+}
+.jm-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
+
+.jm-btn-confirm {
+  color: white; width: 100%;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.jm-btn-row {
+  display: flex; gap: 10px;
+}
+
+.jm-btn-cancel {
+  flex: 1; background: rgba(201,123,138,0.09); color: var(--plum-soft);
+}
+.jm-btn-cancel:hover { background: rgba(201,123,138,0.16); transform: translateY(-1px); }
+
+.jm-btn-ok {
+  flex: 1; color: white;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+}
