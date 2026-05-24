@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { CinematicIntro } from './components/CinematicIntro';
 import { Header } from './components/Header';
 import { TabDock } from './components/TabDock';
+import { ToastProviderWithGlobal } from './components/SweetAlert';
 import { PhotosTab } from './components/PhotosTab';
 import { VideosTab } from './components/VideosTab';
 import { CameraTab } from './components/CameraTab';
@@ -82,6 +83,7 @@ export default function App() {
   };
 
   return (
+    <ToastProviderWithGlobal>
     <>
       {!introDone && <CinematicIntro onDone={() => setIntroDone(true)} />}
       <div className={`app-root ${introDone ? 'app-visible' : 'app-hidden'}`}>
@@ -168,5 +170,6 @@ export default function App() {
         )}
       </div>
     </>
+    </ToastProviderWithGlobal>
   );
 }
