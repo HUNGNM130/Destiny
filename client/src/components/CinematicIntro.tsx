@@ -34,7 +34,7 @@ export function CinematicIntro({ onDone }: Props) {
     top: Math.random() * 100,
     size: 0.6 + Math.random() * 1.4,
     delay: Math.random() * 2,
-    dur: 2 + Math.random() * 3,
+    dur: 2 + Math.random() * 6,
     opacity: 0.1 + Math.random() * 0.5,
     color: ['#f0c4c4','#c8707a','#fde68a','#e9d5ff'][Math.floor(Math.random()*4)],
   }));
