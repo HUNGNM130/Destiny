@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { Memory } from '../types';
 import { API_URL } from '../App';
+import { sweetAlert, toast } from './SweetAlert';
 
 interface Props {
   editing?: Memory;
@@ -89,7 +90,10 @@ export function MemoryFormModal({ editing, onClose, onSaved }: Props) {
   };
 
   const handleSave = async () => {
-    if (!title || !date) { alert('Vui lòng nhập tiêu đề và ngày nhé ♥'); return; }
+    if (!title || !date) {
+      sweetAlert({ icon: '🌸', title: 'Thiếu thông tin rồi!', text: 'Vui lòng nhập tiêu đề và ngày nhé ♥', type: 'warning', confirmText: 'OK nha ♥' });
+      return;
+    }
     setSaving(true);
     const [yyyy, mm, dd] = date.split('-');
     const fd = new FormData();
@@ -106,8 +110,11 @@ export function MemoryFormModal({ editing, onClose, onSaved }: Props) {
       } else {
         await fetch(API_URL, { method: 'POST', body: fd });
       }
+      toast('Đã lưu kỷ niệm! 🌸', 'success');
       onSaved();
-    } catch { alert('Không thể lưu. Kiểm tra server nhé.'); }
+    } catch {
+      sweetAlert({ icon: '💔', title: 'Ôi không!', text: 'Không thể lưu. Kiểm tra kết nối server nhé.', type: 'error', confirmText: 'Okiee' });
+    }
     finally { setSaving(false); }
   };
 

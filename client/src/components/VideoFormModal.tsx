@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import type { Video } from '../types';
 import { VIDEO_API_URL } from '../App';
+import { sweetAlert, toast } from './SweetAlert';
 
 interface Props {
   editing?: Video;
@@ -23,8 +24,14 @@ export function VideoFormModal({ editing, onClose, onSaved }: Props) {
 
   const handleSave = async () => {
     const file = fileInputRef.current?.files?.[0];
-    if (!title || !date) { alert('Vui lòng nhập tiêu đề và ngày nhé ♥'); return; }
-    if (!editing && !file) { alert('Vui lòng chọn file video nhé ♥'); return; }
+    if (!title || !date) {
+      sweetAlert({ icon: '🌸', title: 'Thiếu thông tin!', text: 'Vui lòng nhập tiêu đề và ngày nhé ♥', type: 'warning', confirmText: 'OK nha ♥' });
+      return;
+    }
+    if (!editing && !file) {
+      sweetAlert({ icon: '🎬', title: 'Chưa có video!', text: 'Vui lòng chọn file video nhé ♥', type: 'warning', confirmText: 'OK nha ♥' });
+      return;
+    }
 
     setSaving(true);
     const [yyyy, mm, dd] = date.split('-');
@@ -40,8 +47,11 @@ export function VideoFormModal({ editing, onClose, onSaved }: Props) {
       } else {
         await fetch(VIDEO_API_URL, { method: 'POST', body: fd });
       }
+      toast('Đã lưu video! 🎬', 'success');
       onSaved();
-    } catch { alert('Không thể lưu. Kiểm tra server nhé.'); }
+    } catch {
+      sweetAlert({ icon: '💔', title: 'Ôi không!', text: 'Không thể lưu video. Kiểm tra kết nối server nhé.', type: 'error', confirmText: 'Okiee' });
+    }
     finally { setSaving(false); }
   };
 

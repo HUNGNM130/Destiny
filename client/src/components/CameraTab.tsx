@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { BASE_URL } from '../App';
+import { sweetAlert, toast } from './SweetAlert';
 
 interface Props {
   active: boolean;
@@ -154,8 +155,11 @@ export function CameraTab({ active, onSaved }: Props) {
       if (!resp.ok) throw new Error();
       setCapTitle(''); setCapDesc(''); setPreviewUrl(''); setCapturedBlob(null);
       setCamState('live');
+      toast('Đã lưu ảnh vào kỷ niệm! 📸', 'success');
       onSaved();
-    } catch { alert('Lỗi khi lưu ảnh!'); }
+    } catch {
+      sweetAlert({ icon: '💔', title: 'Lỗi rồi!', text: 'Không thể lưu ảnh, thử lại nhé.', type: 'error', confirmText: 'Okiee' });
+    }
     finally { setSaving(false); }
   };
 

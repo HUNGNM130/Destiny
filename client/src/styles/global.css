@@ -927,3 +927,153 @@ video.mirrored { transform: scaleX(-1); }
   .btn-add, .btn-search { font-size: 0.98rem; padding: 10px 18px; }
   .page-toolbar { padding: 10px 16px; }
 }
+
+/* ════════════════════════════════════════════
+   SWEET ALERT — Custom romantic dialogs
+════════════════════════════════════════════ */
+.sa-overlay {
+  position: fixed; inset: 0; z-index: 99990;
+  background: rgba(40,10,24,0.52);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+
+.sa-card {
+  background: rgba(255,252,254,0.99);
+  border-radius: 28px;
+  padding: 40px 32px 32px;
+  width: 100%; max-width: 380px;
+  text-align: center;
+  box-shadow:
+    0 32px 80px rgba(92,45,56,0.28),
+    0 0 0 1px rgba(200,112,122,0.1),
+    0 1px 0 rgba(255,255,255,0.9) inset;
+  font-family: 'Caveat', cursive;
+}
+
+.sa-in {
+  animation: saCardIn 0.38s cubic-bezier(0.34,1.45,0.64,1) both;
+}
+.sa-out {
+  animation: saCardOut 0.28s cubic-bezier(0.4,0,1,1) both;
+}
+@keyframes saCardIn {
+  from { opacity:0; transform: scale(0.82) translateY(20px); }
+  to   { opacity:1; transform: scale(1) translateY(0); }
+}
+@keyframes saCardOut {
+  from { opacity:1; transform: scale(1); }
+  to   { opacity:0; transform: scale(0.9) translateY(10px); }
+}
+
+.sa-icon-wrap {
+  position: relative;
+  width: 80px; height: 80px;
+  margin: 0 auto 20px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.sa-icon {
+  font-size: 2.6rem;
+  position: relative; z-index: 1;
+  animation: saIconPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both 0.15s;
+}
+@keyframes saIconPop {
+  from { transform: scale(0) rotate(-20deg); }
+  to   { transform: scale(1) rotate(0deg); }
+}
+
+.sa-icon-ring {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  opacity: 0.15;
+  animation: saRingPulse 2.5s ease-in-out infinite;
+}
+@keyframes saRingPulse {
+  0%,100% { transform: scale(1); opacity: 0.15; }
+  50%      { transform: scale(1.1); opacity: 0.25; }
+}
+
+.sa-title {
+  font-family: 'Cormorant Garamond', 'Dancing Script', Georgia, serif;
+  font-size: 1.65rem; font-weight: 400; font-style: italic;
+  color: #5c2d38; margin: 0 0 10px;
+  letter-spacing: 0.5px;
+  animation: fadeInUp 0.4s ease both 0.2s;
+}
+
+.sa-text {
+  font-family: 'Caveat', cursive;
+  color: #7a3d4a; font-size: 1.08rem;
+  margin: 0 0 24px; line-height: 1.45;
+  opacity: 0.85;
+  animation: fadeInUp 0.4s ease both 0.28s;
+}
+
+.sa-btn {
+  border: none; border-radius: 20px;
+  font-family: 'Caveat', cursive; font-size: 1.1rem; font-weight: 600;
+  padding: 12px 28px; cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s;
+  letter-spacing: 0.2px;
+}
+.sa-btn:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.sa-btn:active { transform: translateY(0); }
+
+.sa-btn-confirm {
+  color: white; width: 100%;
+  box-shadow: 0 4px 18px rgba(200,112,122,0.38);
+  animation: fadeInUp 0.4s ease both 0.35s;
+}
+.sa-btn-confirm:hover { box-shadow: 0 8px 24px rgba(200,112,122,0.48); }
+
+.sa-btn-row {
+  display: flex; gap: 10px;
+  animation: fadeInUp 0.4s ease both 0.35s;
+}
+
+.sa-btn-cancel {
+  flex: 1;
+  background: rgba(200,112,122,0.09);
+  color: #7a3d4a;
+}
+.sa-btn-cancel:hover { background: rgba(200,112,122,0.16); }
+
+.sa-btn-danger {
+  flex: 1; color: white;
+  background: linear-gradient(135deg, #c05060, #e07080);
+  box-shadow: 0 4px 16px rgba(192,80,96,0.35);
+}
+.sa-btn-danger:hover { box-shadow: 0 6px 20px rgba(192,80,96,0.48); }
+
+/* ── Toast stack ── */
+#sa-toast-mount {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 99995; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+
+.sa-toast-stack {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+
+.sa-toast {
+  font-family: 'Caveat', cursive; font-size: 1.05rem;
+  padding: 12px 24px; border-radius: 20px;
+  color: white; white-space: nowrap;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.2) inset;
+  animation: toastIn 0.35s cubic-bezier(0.34,1.4,0.64,1) both;
+}
+@keyframes toastIn {
+  from { opacity:0; transform: translateY(16px) scale(0.9); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+
+.sa-toast-success { background: linear-gradient(135deg, rgba(192,80,96,0.92), rgba(232,143,160,0.92)); }
+.sa-toast-error   { background: linear-gradient(135deg, rgba(160,50,60,0.92), rgba(200,80,90,0.92)); }
+.sa-toast-warning { background: linear-gradient(135deg, rgba(180,120,60,0.92), rgba(220,160,80,0.92)); }
+.sa-toast-info    { background: linear-gradient(135deg, rgba(120,80,180,0.92), rgba(160,120,220,0.92)); }
