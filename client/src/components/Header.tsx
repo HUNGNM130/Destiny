@@ -73,9 +73,6 @@ export function Header() {
 
   return (
     <header>
-      <div className="header-badge">♥ &nbsp;{days} ngày bên nhau</div>
-      <div className="header-hearts">· · ·</div>
-
       {/* MagneticText — title */}
       <div
         ref={containerRef}
