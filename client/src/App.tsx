@@ -12,6 +12,7 @@ import { VideoPlayerModal } from './components/VideoPlayerModal';
 import { useSocket } from './hooks/useSocket';
 import { useDynamicBackground } from './hooks/useDynamicBackground';
 import type { Memory, Video, Tab } from './types';
+import { sweetConfirm } from './components/SweetAlert';
 import './styles/global.css';
 
 export const BASE_URL = 'https://destiny-s88d.onrender.com';
@@ -94,7 +95,14 @@ export default function App() {
             onAdd={() => setMemoryModal({ open: true })}
             onEdit={(m) => setMemoryModal({ open: true, editing: m })}
             onDelete={async (id) => {
-              if (!confirm('Xoá kỷ niệm này? 💔')) return;
+              const yes = await sweetConfirm({
+                title: 'Xoá kỷ niệm này?',
+                text: 'Kỷ niệm sẽ mất mãi mãi, không khôi phục được đâu nha 💔',
+                confirmText: 'Xoá luôn 💔',
+                cancelText: 'Thôi để vậy',
+                type: 'error',
+              });
+              if (!yes) return;
               await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
               setMemories(prev => prev.filter(m => m.id !== id));
             }}
@@ -109,7 +117,14 @@ export default function App() {
             onAdd={() => setVideoModal({ open: true })}
             onEdit={(v) => setVideoModal({ open: true, editing: v })}
             onDelete={async (id) => {
-              if (!confirm('Xoá video này? 💔')) return;
+              const yes = await sweetConfirm({
+                title: 'Xoá video này?',
+                text: 'Video sẽ biến mất vĩnh viễn nha 🎬💔',
+                confirmText: 'Xoá luôn 💔',
+                cancelText: 'Thôi để vậy',
+                type: 'error',
+              });
+              if (!yes) return;
               await fetch(`${VIDEO_API_URL}/${id}`, { method: 'DELETE' });
               setVideos(prev => prev.filter(v => v.id !== id));
             }}
