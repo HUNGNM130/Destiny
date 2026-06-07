@@ -86,7 +86,6 @@ export function VideoFormModal({ editing, onClose, onSaved }: Props) {
         <div className="form-buttons">
           <button className="btn-cancel" onClick={onClose}>Huỷ</button>
           <button className="btn-save" onClick={handleSave} disabled={saving}>
-            {saving ? 'Đang upload...' : 'Lưu lại ♥'}
           </button>
         </div>
       </div>

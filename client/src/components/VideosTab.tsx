@@ -177,7 +177,6 @@ export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: 
       <div className="page-toolbar">
         <button className="btn-add" onClick={onAdd}>＋ Thêm video</button>
       </div>
-      {loading && <div className="loading">đang tải video... ♥</div>}
       <div id="videoContainer" ref={containerRef} />
     </div>
   );

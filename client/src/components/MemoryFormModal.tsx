@@ -52,21 +52,35 @@ export function MemoryFormModal({ editing, onClose, onSaved }: Props) {
 
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const src = ev.target?.result as string;
-      const img = cropImgRef.current;
-      if (!img) return;
-      img.src = src;
-      img.onload = () => {
-        setCropperActive(true);
-        setTimeout(() => {
-          const Cropper = (window as unknown as { Cropper?: new (el: HTMLElement, opts: object) => object }).Cropper;
-          if (!Cropper) return;
-          cropperRef.current = new Cropper(img, {
-            viewMode: 1, autoCropArea: 0.85, movable: true, zoomable: true,
-            rotatable: false, scalable: false, background: false, responsive: true,
-          }) as import('cropperjs');
-        }, 50);
-      };
+  const src = ev.target?.result as string;
+
+  setCropperActive(true);
+
+  setTimeout(() => {
+    const img = cropImgRef.current;
+    if (!img) return;
+
+    img.src = src;
+
+    img.onload = () => {
+      const Cropper = (window as unknown as {
+        Cropper?: new (el: HTMLElement, opts: object) => object
+      }).Cropper;
+
+      if (!Cropper) return;
+
+      cropperRef.current = new Cropper(img, {
+        viewMode: 1,
+        autoCropArea: 0.85,
+        movable: true,
+        zoomable: true,
+        rotatable: false,
+        scalable: false,
+        background: false,
+        responsive: true,
+      }) as import('cropperjs');
+    };
+  }, 50);
     };
     reader.readAsDataURL(file);
   };
