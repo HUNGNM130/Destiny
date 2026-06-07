@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { BASE_URL } from '../App';
-import { showToast } from './SweetAlert';
+import { toast } from './SweetAlert';
 
 interface GiftConfig {
   appTitle: string;
@@ -88,12 +88,12 @@ export function DashboardTab() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        showToast({ message: 'Đã lưu cấu hình 💕', type: 'success' });
+        toast('Đã lưu cấu hình 💕', 'success');
       } else {
-        showToast({ message: 'Lỗi khi lưu!', type: 'error' });
+        toast('Lỗi khi lưu!', 'error');
       }
     } catch {
-      showToast({ message: 'Lỗi kết nối!', type: 'error' });
+      toast('Lỗi kết nối!', 'error');
     }
     setSaving(false);
   };
@@ -108,10 +108,10 @@ export function DashboardTab() {
       if (data.url) {
         const fullUrl = `${BASE_URL}${data.url}`;
         setServerImages(prev => [...prev, fullUrl]);
-        showToast({ message: 'Tải ảnh lên thành công! 🖼️', type: 'success' });
+        toast('Tải ảnh lên thành công! 🖼️', 'success');
       }
     } catch {
-      showToast({ message: 'Lỗi tải ảnh!', type: 'error' });
+      toast('Lỗi tải ảnh!', 'error');
     }
     setUploading(false);
   };
@@ -418,7 +418,7 @@ export function DashboardTab() {
                 />
                 <button className="db-btn-outline" onClick={() => {
                   navigator.clipboard.writeText(`${BASE_URL}/mon-qua-nho/`);
-                  showToast({ message: 'Đã copy link! 🔗', type: 'success' });
+                  toast('Đã copy link! 🔗', 'success');
                 }}>
                   📋 Copy
                 </button>
