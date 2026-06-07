@@ -1,4 +1,4 @@
-export type Tab = 'photos' | 'videos' | 'camera' | 'gallery';
+export type Tab = 'photos' | 'videos' | 'camera' | 'gallery' | 'gift' | 'dashboard';
 
 export interface Memory {
   id: number;

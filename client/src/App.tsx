@@ -7,6 +7,8 @@ import { PhotosTab } from './components/PhotosTab';
 import { VideosTab } from './components/VideosTab';
 import { CameraTab } from './components/CameraTab';
 import { GalleryTab } from './components/GalleryTab';
+import { GiftTab } from './components/GiftTab';
+import { DashboardTab } from './components/DashboardTab';
 import { MemoryFormModal } from './components/MemoryFormModal';
 import { VideoFormModal } from './components/VideoFormModal';
 import { VideoPlayerModal } from './components/VideoPlayerModal';
@@ -144,6 +146,10 @@ export default function App() {
         {tab === 'gallery' && (
           <GalleryTab memories={memories} />
         )}
+
+        {tab === 'gift' && <GiftTab />}
+
+        {tab === 'dashboard' && <DashboardTab />}
 
         {memoryModal.open && (
           <MemoryFormModal
