@@ -1833,3 +1833,110 @@ video.mirrored { transform: scaleX(-1); }
 }
 
 .admin-cancel:hover { opacity: 1; }
+
+/* ══════════════════════════════════════════════════════
+   ADMIN ENTRY BUTTON — góc trái, nhỏ gọn
+══════════════════════════════════════════════════════ */
+.admin-entry-btn {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 500;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 1.05rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  opacity: 0.55;
+  /* spin on hover */
+  transform-origin: center;
+}
+
+.admin-entry-btn:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.35);
+  transform: rotate(60deg) scale(1.1);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+}
+
+/* ══════════════════════════════════════════════════════
+   GIFT TAB — card mở trang quà
+══════════════════════════════════════════════════════ */
+.gift-tab-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 55vh;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.gift-tab-spinner {
+  font-size: 3rem;
+  animation: giftPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes giftPulse {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%       { transform: scale(1.15); opacity: 0.7; }
+}
+
+.gift-tab-title {
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  color: var(--plum);
+  font-style: italic;
+  margin-bottom: 10px;
+}
+
+.gift-tab-sub {
+  font-family: var(--font-hand);
+  color: var(--plum-soft);
+  font-size: 1.1rem;
+  opacity: 0.75;
+  margin-bottom: 28px;
+}
+
+.gift-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 36px;
+  background: linear-gradient(135deg, var(--rose) 0%, #d4547a 100%);
+  color: white;
+  border-radius: 50px;
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 500;
+  text-decoration: none;
+  box-shadow: 0 8px 28px rgba(201,123,138,0.45);
+  transition: all 0.22s var(--ease-bounce);
+  letter-spacing: 0.3px;
+}
+
+.gift-tab-btn:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 14px 36px rgba(201,123,138,0.55);
+}
+
+.gift-tab-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.gift-tab-hint {
+  margin-top: 12px;
+  font-family: var(--font-hand);
+  font-size: 0.85rem;
+  color: var(--plum-soft);
+  opacity: 0.45;
+}

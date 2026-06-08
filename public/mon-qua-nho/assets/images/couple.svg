@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd1dc"/>
+      <stop offset="100%" style="stop-color:#ffb6c1"/>
+    </linearGradient>
+    <linearGradient id="skin1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fddbb0"/>
+      <stop offset="100%" style="stop-color:#f0c090"/>
+    </linearGradient>
+    <linearGradient id="skin2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fcc8a0"/>
+      <stop offset="100%" style="stop-color:#e8a878"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="96" fill="url(#bg)"/>
+  <!-- Girl (left) -->
+  <!-- Girl hair -->
+  <ellipse cx="68" cy="72" rx="28" ry="32" fill="#4a2800"/>
+  <path d="M42,80 Q38,110 44,130" stroke="#4a2800" stroke-width="8" fill="none"/>
+  <path d="M94,80 Q98,110 94,130" stroke="#4a2800" stroke-width="8" fill="none"/>
+  <!-- Girl head -->
+  <circle cx="68" cy="76" r="24" fill="url(#skin1)"/>
+  <!-- Girl eyes -->
+  <ellipse cx="60" cy="74" rx="4" ry="4.5" fill="#2a1a0a"/>
+  <ellipse cx="76" cy="74" rx="4" ry="4.5" fill="#2a1a0a"/>
+  <circle cx="61" cy="72" r="1.5" fill="white"/>
+  <circle cx="77" cy="72" r="1.5" fill="white"/>
+  <!-- Girl blush -->
+  <ellipse cx="55" cy="81" rx="6" ry="3.5" fill="#f080a0" opacity="0.4"/>
+  <ellipse cx="81" cy="81" rx="6" ry="3.5" fill="#f080a0" opacity="0.4"/>
+  <!-- Girl smile -->
+  <path d="M61,85 Q68,91 75,85" stroke="#c05060" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- Girl body -->
+  <path d="M44,145 Q44,100 68,100 Q92,100 92,145 Z" fill="#ff80aa"/>
+  <!-- Boy (right) -->
+  <!-- Boy hair -->
+  <ellipse cx="132" cy="70" rx="26" ry="22" fill="#3a2200"/>
+  <!-- Boy head -->
+  <circle cx="132" cy="78" r="24" fill="url(#skin2)"/>
+  <!-- Boy eyes -->
+  <ellipse cx="124" cy="76" rx="4" ry="4" fill="#2a1a0a"/>
+  <ellipse cx="140" cy="76" rx="4" ry="4" fill="#2a1a0a"/>
+  <circle cx="125" cy="74" r="1.5" fill="white"/>
+  <circle cx="141" cy="74" r="1.5" fill="white"/>
+  <!-- Boy blush -->
+  <ellipse cx="119" cy="83" rx="6" ry="3.5" fill="#f08060" opacity="0.35"/>
+  <ellipse cx="145" cy="83" rx="6" ry="3.5" fill="#f08060" opacity="0.35"/>
+  <!-- Boy smile -->
+  <path d="M125,87 Q132,93 139,87" stroke="#a04030" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- Boy body -->
+  <path d="M108,145 Q108,102 132,102 Q156,102 156,145 Z" fill="#6090e8"/>
+  <!-- Holding hands area -->
+  <ellipse cx="100" cy="135" rx="10" ry="7" fill="#f0c090"/>
+  <!-- Big heart between them -->
+  <g transform="translate(100,60)">
+    <path d="M0,-14 C0,-24 -17,-24 -17,-12 C-17,0 0,15 0,15 C0,15 17,0 17,-12 C17,-24 0,-24 0,-14 Z" fill="#ff4070" opacity="0.85"/>
+  </g>
+  <!-- Sparkles -->
+  <text x="22" y="45" font-size="16">✨</text>
+  <text x="158" y="45" font-size="14">✨</text>
+  <text x="90" y="175" font-size="12">💕</text>
+</svg>

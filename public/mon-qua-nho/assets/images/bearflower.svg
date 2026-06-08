@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 160" width="120" height="160">
+  <defs>
+    <linearGradient id="bfbody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#b8826a"/>
+      <stop offset="100%" style="stop-color:#8a5838"/>
+    </linearGradient>
+  </defs>
+  <!-- Flower (held out) -->
+  <line x1="88" y1="110" x2="105" y2="75" stroke="#4a8a30" stroke-width="3"/>
+  <circle cx="105" cy="68" r="10" fill="#ff6090"/>
+  <circle cx="95" cy="62" r="7" fill="#ff90b8"/>
+  <circle cx="115" cy="62" r="7" fill="#ff90b8"/>
+  <circle cx="98" cy="72" r="7" fill="#ff90b8"/>
+  <circle cx="112" cy="72" r="7" fill="#ff90b8"/>
+  <circle cx="105" cy="65" r="5" fill="#ffdd00"/>
+  <!-- Ears -->
+  <circle cx="32" cy="40" r="17" fill="url(#bfbody)"/>
+  <circle cx="82" cy="38" r="17" fill="url(#bfbody)"/>
+  <circle cx="32" cy="40" r="10" fill="#c09070"/>
+  <circle cx="82" cy="38" r="10" fill="#c09070"/>
+  <!-- Head -->
+  <circle cx="57" cy="64" r="36" fill="url(#bfbody)"/>
+  <!-- Face -->
+  <ellipse cx="57" cy="76" rx="17" ry="11" fill="#b07060"/>
+  <!-- Eyes (happy) -->
+  <path d="M43,60 Q47,54 51,60" stroke="#2a1a0a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M63,60 Q67,54 71,60" stroke="#2a1a0a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Nose -->
+  <ellipse cx="57" cy="72" rx="6" ry="4" fill="#5a3020"/>
+  <!-- Smile -->
+  <path d="M49,80 Q57,88 65,80" stroke="#5a3020" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Body -->
+  <ellipse cx="57" cy="130" rx="28" ry="25" fill="url(#bfbody)"/>
+  <!-- Arms -->
+  <ellipse cx="22" cy="120" rx="11" ry="16" fill="url(#bfbody)" transform="rotate(20,22,120)"/>
+  <ellipse cx="90" cy="110" rx="11" ry="16" fill="url(#bfbody)" transform="rotate(-30,90,110)"/>
+  <!-- Tummy -->
+  <ellipse cx="57" cy="132" rx="16" ry="14" fill="#c09070"/>
+  <!-- Blush -->
+  <ellipse cx="38" cy="72" rx="7" ry="4.5" fill="#e87080" opacity="0.4"/>
+  <ellipse cx="76" cy="72" rx="7" ry="4.5" fill="#e87080" opacity="0.4"/>
+  <!-- Heart -->
+  <path d="M57,50 C57,44 50,44 50,49 C50,54 57,58 57,58 C57,58 64,54 64,49 C64,44 57,44 57,50 Z" fill="#ff4070" opacity="0.7"/>
+</svg>

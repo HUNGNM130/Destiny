@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 130" width="140" height="130">
+  <defs>
+    <linearGradient id="pw1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c9a0f8"/>
+      <stop offset="50%" style="stop-color:#a870f0"/>
+      <stop offset="100%" style="stop-color:#9050e8"/>
+    </linearGradient>
+    <linearGradient id="pw2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#dfc0ff"/>
+      <stop offset="100%" style="stop-color:#b890f5"/>
+    </linearGradient>
+  </defs>
+  <!-- Upper left wing -->
+  <path d="M70,62 Q25,18 12,40 Q4,58 36,68 Q54,72 70,62 Z" fill="url(#pw1)" opacity="0.9" stroke="#7030c0" stroke-width="0.8"/>
+  <!-- Lower left wing -->
+  <path d="M70,68 Q28,72 20,96 Q16,114 48,104 Q64,95 70,78 Z" fill="url(#pw2)" opacity="0.85" stroke="#7030c0" stroke-width="0.8"/>
+  <!-- Upper right wing -->
+  <path d="M70,62 Q115,18 128,40 Q136,58 104,68 Q86,72 70,62 Z" fill="url(#pw1)" opacity="0.9" stroke="#7030c0" stroke-width="0.8"/>
+  <!-- Lower right wing -->
+  <path d="M70,68 Q112,72 120,96 Q124,114 92,104 Q76,95 70,78 Z" fill="url(#pw2)" opacity="0.85" stroke="#7030c0" stroke-width="0.8"/>
+  <!-- Wing patterns -->
+  <circle cx="42" cy="46" r="7" fill="#ffffff" opacity="0.3"/>
+  <circle cx="98" cy="46" r="7" fill="#ffffff" opacity="0.3"/>
+  <!-- Body -->
+  <ellipse cx="70" cy="70" rx="4.5" ry="20" fill="#4a1880"/>
+  <!-- Antennae -->
+  <path d="M68,52 Q52,31 48,24" stroke="#4a1880" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <circle cx="48" cy="24" r="2.8" fill="#a870f0"/>
+  <path d="M72,52 Q88,31 92,24" stroke="#4a1880" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <circle cx="92" cy="24" r="2.8" fill="#a870f0"/>
+</svg>

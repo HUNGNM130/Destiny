@@ -153,7 +153,7 @@ export default function App() {
 
         {tab === 'dashboard' && adminUnlocked && <DashboardTab />}
 
-        {/* Invisible admin gate — góc dưới phải, tap 5 lần để mở */}
+        {/* Admin gate — icon nhỏ góc trái */}
         <AdminGate onUnlocked={() => { setAdminUnlocked(true); setTab('dashboard'); }} />
 
         {memoryModal.open && (
