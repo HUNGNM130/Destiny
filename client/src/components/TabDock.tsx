@@ -4,10 +4,11 @@ import type { Tab } from '../types';
 interface Props { tab: Tab; onTabChange: (t: Tab) => void; }
 
 const TABS: { id: Tab; emoji: string; label: string }[] = [
-  { id: 'photos',  emoji: '📷', label: 'Kỷ niệm' },
-  { id: 'videos',  emoji: '🎬', label: 'Video'   },
-  { id: 'camera',  emoji: '📸', label: 'Camera'  },
-  { id: 'gallery', emoji: '✨', label: 'Tập chính' },
+  { id: 'photos',    emoji: '📷', label: 'Kỷ niệm' },
+  { id: 'videos',    emoji: '🎬', label: 'Video'   },
+  { id: 'camera',    emoji: '📸', label: 'Camera'  },
+  { id: 'gallery',   emoji: '✨', label: 'Tập chính' },
+  { id: 'gift',      emoji: '🎁', label: 'Quà tặng' },
 ];
 
 const BASE_SIZE   = 52;   // px — resting item size

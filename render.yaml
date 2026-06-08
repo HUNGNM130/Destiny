@@ -15,3 +15,5 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: ADMIN_PIN
+        sync: false          # Mã PIN bí mật để vào Dashboard (mặc định: 1234)
