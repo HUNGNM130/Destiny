@@ -181,7 +181,37 @@ io.on("connection", (socket) => {
   socket.on("disconnect",   ()  => console.log("🔴 User disconnected"));
 });
 
-// ─── Gift Config API ──────────────────────────────────────────────────────────
+// ─── Admin PIN Verify ──────────────────────────────────────────────────────────
+// PIN được set qua env var ADMIN_PIN (default: 1234)
+// Có rate-limit đơn giản: 5 lần sai → khoá 60s
+const adminAttempts = new Map(); // ip → { count, lockedUntil }
+
+app.post("/api/admin-verify", (req, res) => {
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const record = adminAttempts.get(ip) || { count: 0, lockedUntil: 0 };
+
+  if (record.lockedUntil > now) {
+    const wait = Math.ceil((record.lockedUntil - now) / 1000);
+    return res.status(429).json({ ok: false, message: `Thử lại sau ${wait}s` });
+  }
+
+  const { pin } = req.body;
+  const adminPin = process.env.ADMIN_PIN || "1234";
+
+  if (pin === adminPin) {
+    adminAttempts.delete(ip);
+    return res.json({ ok: true });
+  }
+
+  record.count += 1;
+  if (record.count >= 5) {
+    record.lockedUntil = now + 60_000;
+    record.count = 0;
+  }
+  adminAttempts.set(ip, record);
+  res.json({ ok: false });
+});
 
 // GET /api/gift-config  → returns full config object
 app.get("/api/gift-config", async (req, res) => {

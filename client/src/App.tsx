@@ -9,6 +9,7 @@ import { CameraTab } from './components/CameraTab';
 import { GalleryTab } from './components/GalleryTab';
 import { GiftTab } from './components/GiftTab';
 import { DashboardTab } from './components/DashboardTab';
+import { AdminGate } from './components/AdminGate';
 import { MemoryFormModal } from './components/MemoryFormModal';
 import { VideoFormModal } from './components/VideoFormModal';
 import { VideoPlayerModal } from './components/VideoPlayerModal';
@@ -25,6 +26,7 @@ export const VIDEO_API_URL = `${BASE_URL}/videos`;
 export default function App() {
   const [introDone, setIntroDone] = useState(false);
   const [tab, setTab] = useState<Tab>('photos');
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loadingMemories, setLoadingMemories] = useState(false);
@@ -149,7 +151,10 @@ export default function App() {
 
         {tab === 'gift' && <GiftTab />}
 
-        {tab === 'dashboard' && <DashboardTab />}
+        {tab === 'dashboard' && adminUnlocked && <DashboardTab />}
+
+        {/* Invisible admin gate — góc dưới phải, tap 5 lần để mở */}
+        <AdminGate onUnlocked={() => { setAdminUnlocked(true); setTab('dashboard'); }} />
 
         {memoryModal.open && (
           <MemoryFormModal

@@ -9,7 +9,6 @@ const TABS: { id: Tab; emoji: string; label: string }[] = [
   { id: 'camera',    emoji: '📸', label: 'Camera'  },
   { id: 'gallery',   emoji: '✨', label: 'Tập chính' },
   { id: 'gift',      emoji: '🎁', label: 'Quà tặng' },
-  { id: 'dashboard', emoji: '⚙️', label: 'Dashboard' },
 ];
 
 const BASE_SIZE   = 52;   // px — resting item size
@@ -23,7 +22,7 @@ export function TabDock({ tab, onTabChange }: Props) {
 
   // Smooth spring for each item
   const springs  = useRef<{ current: number; target: number; vel: number }[]>(
-    TABS.map(() => ({ current: BASE_SIZE, target: BASE_SIZE, vel: 0 })) as { current: number; target: number; vel: number }[]
+    TABS.map(() => ({ current: BASE_SIZE, target: BASE_SIZE, vel: 0 }))
   );
 
   const getTargetSize = (itemMidX: number) => {

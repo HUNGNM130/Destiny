@@ -1674,3 +1674,162 @@ video.mirrored { transform: scaleX(-1); }
   right: 20px;
   z-index: 200;
 }
+
+/* ══════════════════════════════════════════════════════
+   ADMIN GATE — Secret PIN modal
+══════════════════════════════════════════════════════ */
+.admin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(30, 10, 20, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: adminFadeIn 0.2s ease;
+}
+
+@keyframes adminFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.admin-modal {
+  background: rgba(255, 245, 248, 0.97);
+  border: 1.5px solid rgba(201, 123, 138, 0.25);
+  border-radius: 28px;
+  padding: 36px 32px 28px;
+  width: min(320px, 88vw);
+  box-shadow: 0 24px 60px rgba(100, 20, 40, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  animation: adminSlideUp 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes adminSlideUp {
+  from { transform: translateY(40px) scale(0.93); opacity: 0; }
+  to   { transform: translateY(0) scale(1);       opacity: 1; }
+}
+
+.admin-shake {
+  animation: adminShakeAnim 0.5s ease !important;
+}
+
+@keyframes adminShakeAnim {
+  0%,100% { transform: translateX(0); }
+  15%     { transform: translateX(-8px); }
+  30%     { transform: translateX(8px); }
+  45%     { transform: translateX(-6px); }
+  60%     { transform: translateX(6px); }
+  75%     { transform: translateX(-3px); }
+  90%     { transform: translateX(3px); }
+}
+
+.admin-modal-icon {
+  font-size: 2.6rem;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 2px 8px rgba(201,123,138,0.3));
+}
+
+.admin-modal-title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--plum);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.admin-modal-subtitle {
+  font-family: var(--font-hand);
+  color: var(--plum-soft);
+  font-size: 0.95rem;
+  opacity: 0.7;
+  margin-bottom: 24px;
+}
+
+.admin-dots {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.admin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--rose-light);
+  background: transparent;
+  transition: all 0.18s var(--ease-bounce);
+}
+
+.admin-dot.filled {
+  background: var(--rose);
+  border-color: var(--rose);
+  transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(201,123,138,0.5);
+}
+
+.admin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.admin-key {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1.5px solid rgba(201,123,138,0.2);
+  background: rgba(255,255,255,0.8);
+  font-family: var(--font-body);
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--plum);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  box-shadow: 0 2px 8px rgba(100,20,40,0.06);
+}
+
+.admin-key:hover:not(:disabled) {
+  background: var(--rose-blush);
+  border-color: var(--rose-light);
+  transform: scale(1.08);
+}
+
+.admin-key:active:not(:disabled) {
+  transform: scale(0.94);
+  background: rgba(201,123,138,0.15);
+}
+
+.admin-key-empty {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: default !important;
+}
+
+.admin-cancel {
+  background: transparent;
+  border: none;
+  color: var(--plum-soft);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 6px 16px;
+  border-radius: 20px;
+  transition: opacity 0.15s;
+}
+
+.admin-cancel:hover { opacity: 1; }
