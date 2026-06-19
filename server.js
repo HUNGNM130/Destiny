@@ -14,12 +14,13 @@ const ytdlp      = require("yt-dlp-exec");
 const ffmpeg     = require("fluent-ffmpeg");
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
-// Dùng ffmpeg-static nếu có, fallback về system ffmpeg (Render có sẵn)
+// Dùng system ffmpeg (Railway/Render đều có sẵn qua nixpacks)
+// ffmpeg-static fallback nếu không có system ffmpeg
 try {
   const ffmpegPath = require("ffmpeg-static");
   if (ffmpegPath) ffmpeg.setFfmpegPath(ffmpegPath);
 } catch (e) {
-  console.log("ffmpeg-static not available, using system ffmpeg");
+  console.log("Using system ffmpeg");
 }
 
 cloudinary.config({
