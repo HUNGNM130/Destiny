@@ -2,11 +2,13 @@ services:
   - type: web
     name: love-diary
     runtime: node
-    buildCommand: npm install && npm run build
+    buildCommand: npm config set registry https://registry.npmjs.org/ && npm install --registry=https://registry.npmjs.org/ && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NPM_CONFIG_REGISTRY
+        value: https://registry.npmjs.org/
       - key: DATABASE_URL
         sync: false          # Điền trên Render dashboard
       - key: CLOUDINARY_CLOUD_NAME
