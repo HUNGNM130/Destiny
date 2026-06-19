@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ThemePicker } from './ThemePicker';
 
 const LOVE_START_DATE = new Date('2025-09-20');
 function getDaysInLove() {
@@ -73,7 +74,7 @@ export function Header({ memoryCount = 0, videoCount = 0 }: { memoryCount?: numb
 
   return (
     <header>
-      <div className="header-badge">♥ &nbsp;{days} ngày bên nhau</div>
+      <div className="header-top-row"><div className="header-badge">♥ &nbsp;{days} ngày bên nhau</div><ThemePicker /></div>
       <div className="header-hearts">· · ·</div>
 
       {/* MagneticText — title */}

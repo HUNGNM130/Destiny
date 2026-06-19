@@ -6,6 +6,10 @@ interface Props { tab: Tab; onTabChange: (t: Tab) => void; }
 const TABS: { id: Tab; emoji: string; label: string }[] = [
   { id: 'photos',    emoji: '📷', label: 'Kỷ niệm' },
   { id: 'videos',    emoji: '🎬', label: 'Video'   },
+  { id: 'timeline',  emoji: '🕰️', label: 'Timeline' },
+  { id: 'map',       emoji: '🗺️', label: 'Love Map' },
+  { id: 'letters',   emoji: '💌', label: 'Thư' },
+  { id: 'stats',     emoji: '📊', label: 'Stats' },
   { id: 'camera',    emoji: '📸', label: 'Camera'  },
   { id: 'gallery',   emoji: '✨', label: 'Tập chính' },
   { id: 'gift',      emoji: '🎁', label: 'Quà tặng' },

@@ -9,6 +9,10 @@ import { CameraTab } from './components/CameraTab';
 import { GalleryTab } from './components/GalleryTab';
 import { GiftTab } from './components/GiftTab';
 import { DashboardTab } from './components/DashboardTab';
+import { TimelineTab } from './components/TimelineTab';
+import { LoveMapTab } from './components/LoveMapTab';
+import { LettersTab } from './components/LettersTab';
+import { StatsTab } from './components/StatsTab';
 import { AdminGate } from './components/AdminGate';
 import { MemoryFormModal } from './components/MemoryFormModal';
 import { VideoFormModal } from './components/VideoFormModal';
@@ -37,6 +41,7 @@ export default function App() {
   const [memoryModal, setMemoryModal] = useState<{ open: boolean; editing?: Memory }>({ open: false });
   const [videoModal, setVideoModal] = useState<{ open: boolean; editing?: Video }>({ open: false });
   const [playerModal, setPlayerModal] = useState<{ open: boolean; src: string; title?: string }>({ open: false, src: '' });
+  const [memoryViewer, setMemoryViewer] = useState<Memory | null>(null);
 
   useDynamicBackground();
 
@@ -64,7 +69,7 @@ export default function App() {
   useEffect(() => { loadMemories(); }, [loadMemories]);
 
   useEffect(() => {
-    if (tab === 'videos') loadVideos();
+    if (tab === 'videos' || tab === 'stats') loadVideos();
   }, [tab, loadVideos]);
 
   useSocket({
@@ -151,6 +156,20 @@ export default function App() {
           />
         )}
 
+        {tab === 'timeline' && (
+          <TimelineTab memories={memories} onOpenMemory={setMemoryViewer} />
+        )}
+
+        {tab === 'map' && (
+          <LoveMapTab memories={memories} onOpenMemory={setMemoryViewer} />
+        )}
+
+        {tab === 'letters' && <LettersTab />}
+
+        {tab === 'stats' && (
+          <StatsTab memories={memories} videos={videos} onOpenMemory={setMemoryViewer} />
+        )}
+
         {tab === 'camera' && (
           <CameraTab
             active={tab === 'camera'}
@@ -168,6 +187,22 @@ export default function App() {
 
         {/* Admin gate — icon nhỏ góc trái */}
         <AdminGate onUnlocked={() => { setAdminUnlocked(true); setTab('dashboard'); }} />
+
+        {memoryViewer && (
+          <div className="memory-lightbox" onClick={() => setMemoryViewer(null)}>
+            <div className="memory-lightbox-card" onClick={e => e.stopPropagation()}>
+              <button className="memory-lightbox-close" onClick={() => setMemoryViewer(null)}>✕</button>
+              {memoryViewer.image && <img src={memoryViewer.image} alt={memoryViewer.title} />}
+              <div className="memory-lightbox-body">
+                <span className="eyebrow">{new Date(memoryViewer.date).toLocaleDateString('vi-VN')}</span>
+                <h3>{memoryViewer.title}</h3>
+                {memoryViewer.location && <p>📍 {memoryViewer.location}</p>}
+                {memoryViewer.description && <p>{memoryViewer.description}</p>}
+                <button className="btn-add" onClick={() => { setMemoryViewer(null); setMemoryModal({ open: true, editing: memoryViewer }); }}>✏️ Chỉnh sửa</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {memoryModal.open && (
           <MemoryFormModal

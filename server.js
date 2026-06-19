@@ -64,6 +64,18 @@ const pool = new Pool({
       )
     `);
 
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS love_letters (
+        id          SERIAL PRIMARY KEY,
+        title       VARCHAR(255) NOT NULL,
+        unlock_at   DATE NOT NULL,
+        message     TEXT NOT NULL,
+        cover_image TEXT,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // ── Gift page config table ──────────────────────────────────────────────
     await pool.query(`
       CREATE TABLE IF NOT EXISTS gift_config (
@@ -363,6 +375,71 @@ app.patch("/api/admin/memories/:id/image", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+
+// ─── Future Love Letters ─────────────────────────────────────────────────────
+function letterIsUnlocked(unlockAt) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(unlockAt);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime() <= today.getTime();
+}
+
+app.get("/api/letters", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT * FROM love_letters ORDER BY unlock_at ASC, id DESC");
+    const letters = r.rows.map(row => {
+      const unlocked = letterIsUnlocked(row.unlock_at);
+      return {
+        ...row,
+        unlocked,
+        message: unlocked ? row.message : null,
+        preview: unlocked ? row.message.slice(0, 120) : "Bức thư này vẫn đang được khóa tới ngày hẹn."
+      };
+    });
+    res.json(letters);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/letters", async (req, res) => {
+  try {
+    const { title, unlock_at, message, cover_image } = req.body;
+    if (!title || !unlock_at || !message) return res.status(400).json({ error: "Thiếu title, ngày mở khóa hoặc nội dung thư" });
+    const r = await pool.query(
+      "INSERT INTO love_letters (title,unlock_at,message,cover_image) VALUES ($1,$2,$3,$4) RETURNING *",
+      [title, unlock_at, message, cover_image || null]
+    );
+    io.emit("lettersUpdated");
+    res.json({ success: true, letter: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete("/api/letters/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM love_letters WHERE id=$1", [req.params.id]);
+    io.emit("lettersUpdated");
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/admin/backup", async (req, res) => {
+  try {
+    const [memories, videos, letters, gift] = await Promise.all([
+      pool.query("SELECT * FROM memories ORDER BY date DESC, id DESC"),
+      pool.query("SELECT * FROM videos ORDER BY date DESC, id DESC"),
+      pool.query("SELECT * FROM love_letters ORDER BY unlock_at ASC, id DESC"),
+      pool.query("SELECT config_key, config_value FROM gift_config ORDER BY config_key ASC")
+    ]);
+    res.json({
+      exported_at: new Date().toISOString(),
+      memories: memories.rows,
+      videos: videos.rows,
+      letters: letters.rows,
+      gift_config: gift.rows
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── Memories ─────────────────────────────────────────────────────────────────

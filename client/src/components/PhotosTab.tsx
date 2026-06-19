@@ -192,6 +192,16 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     return () => window.clearInterval(timer);
   }, [slideshow, viewer, filteredMemories]);
 
+  const shareMemory = async (memory: Memory) => {
+    const url = `${window.location.origin}${window.location.pathname}?memory=${memory.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Đã copy link kỷ niệm 💌');
+    } catch {
+      window.prompt('Copy link kỷ niệm:', url);
+    }
+  };
+
   const exportMemories = () => {
     const blob = new Blob([JSON.stringify(memories, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -201,6 +211,13 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get('memory'));
+    if (!id || !memories.length || viewer) return;
+    const found = memories.find(m => m.id === id);
+    if (found) setViewer(found);
+  }, [memories, viewer]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -338,6 +355,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
               <div className="lightbox-actions">
                 <button className="btn-search" onClick={() => setSlideshow(v => !v)}>{slideshow ? '⏸ Dừng trình chiếu' : '▶ Trình chiếu'}</button>
                 <button className="btn-search" onClick={() => toggleFavorite(viewer.id)}>{favorites.includes(viewer.id) ? '♥ Bỏ yêu thích' : '♡ Lưu yêu thích'}</button>
+                <button className="btn-search" onClick={() => shareMemory(viewer)}>🔗 Copy link</button>
                 <button className="btn-add" onClick={() => { setViewer(null); onEdit(viewer); }}>✏️ Chỉnh sửa</button>
               </div>
             </div>

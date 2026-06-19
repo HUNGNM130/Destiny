@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Video } from '../types';
 import { BASE_URL, VIDEO_API_URL } from '../App';
 
@@ -30,6 +30,25 @@ export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: 
 
   const [containerWidth, setContainerWidth] = useState(window.innerWidth);
   const cols = Math.max(1, Math.floor((containerWidth - 40) / 260));
+  const [query, setQuery] = useState('');
+  const [favorites, setFavorites] = useState<number[]>(() => {
+    try { return JSON.parse(localStorage.getItem('love-diary-video-favorites') || '[]'); } catch { return []; }
+  });
+  const filteredVideos = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return videos.filter(v => !q || [v.title, v.description].some(x => (x || '').toLowerCase().includes(q)));
+  }, [videos, query]);
+
+  useEffect(() => { localStorage.setItem('love-diary-video-favorites', JSON.stringify(favorites)); }, [favorites]);
+
+  const toggleFavorite = (id: number) => setFavorites(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const playRandom = () => {
+    const pool = filteredVideos.length ? filteredVideos : videos;
+    if (!pool.length) return;
+    const video = pool[Math.floor(Math.random() * pool.length)];
+    const src = video.url || (video.filename ? `${BASE_URL}/videos-file/${video.filename}` : '');
+    if (src) onPlay(src, video.title);
+  };
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
@@ -118,14 +137,14 @@ export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: 
     container.innerHTML = '';
     positionsRef.current = {};
 
-    if (videos.length === 0) {
+    if (filteredVideos.length === 0) {
       container.innerHTML = `<div class="empty-state"><span class="big-heart">🎬</span><h2>Chưa có video nào</h2><p>Hãy thêm video đầu tiên của hai đứa nhé ♥</p></div>`;
       return;
     }
 
-    container.style.minHeight = (Math.ceil(videos.length / cols) * 360 + 100) + 'px';
+    container.style.minHeight = (Math.ceil(filteredVideos.length / cols) * 360 + 100) + 'px';
 
-    videos.forEach((video, index) => {
+    filteredVideos.forEach((video, index) => {
       const pos = getInitialPos(video, index, cols, containerWidth);
       positionsRef.current[String(video.id)] = pos;
 
@@ -139,6 +158,7 @@ export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: 
       card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;`;
 
       card.innerHTML = `
+        <button class="fav-btn ${favorites.includes(video.id) ? 'active' : ''}" title="Yêu thích video">${favorites.includes(video.id) ? '♥' : '♡'}</button>
         <div class="video-thumb">
           <video src="${videoSrc}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;pointer-events:none;"></video>
           <div class="video-play-icon">▶️</div>
@@ -155,6 +175,7 @@ export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: 
           </div>
         </div>`;
 
+      (card.querySelector('.fav-btn') as HTMLButtonElement).onclick = () => toggleFavorite(video.id);
       (card.querySelector('.play-btn') as HTMLButtonElement).onclick = () => onPlay(videoSrc, video.title);
       (card.querySelector('.move-btn') as HTMLButtonElement).onclick = () => enableMove(String(video.id));
       (card.querySelector('.edit-btn') as HTMLButtonElement).onclick = () => onEdit(video);
@@ -170,12 +191,20 @@ export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: 
         setTimeout(() => card.style.transition = '', 450);
       });
     });
-  }, [videos, loading, cols]);
+  }, [filteredVideos, loading, cols, favorites, containerWidth]);
 
   return (
     <div id="pageVideos">
-      <div className="page-toolbar">
+      <section className="feature-hero cinema-hero">
+        <span className="eyebrow">Cinema room</span>
+        <h2>Rạp chiếu kỷ niệm</h2>
+        <p>Tìm video, mở ngẫu nhiên một clip và đánh dấu video yêu thích.</p>
+      </section>
+      <div className="page-toolbar upgraded-toolbar">
         <button className="btn-add" onClick={onAdd}>＋ Thêm video</button>
+        <button className="btn-search" onClick={playRandom}>🎲 Xem random</button>
+        <label className="toolbar-search-wrap"><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm video..." /></label>
+        <span className="toolbar-count">{filteredVideos.length}/{videos.length} video</span>
       </div>
       <div id="videoContainer" ref={containerRef} />
     </div>
