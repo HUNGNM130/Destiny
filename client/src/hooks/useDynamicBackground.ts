@@ -1,14 +1,14 @@
 import { useEffect } from 'react';
 
 const gradients: Record<string, string> = {
-  dawn:      'linear-gradient(135deg, #ffecd2 0%, #fcb69f 30%, #ff9a9e 60%, #a18cd1 100%)',
-  morning:   'linear-gradient(135deg, #fdfbfb 0%, #ebedee 40%, #d4e8f5 70%, #b8d4ea 100%)',
-  noon:      'linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 40%, #80deea 70%, #c8e6c9 100%)',
-  afternoon: 'linear-gradient(135deg, #fff9c4 0%, #ffe082 40%, #ffcc02 60%, #f9a825 100%)',
-  sunset:    'linear-gradient(135deg, #ff6e7f 0%, #bfe9ff 30%, #ffb347 60%, #ff6e7f 100%)',
-  evening:   'linear-gradient(135deg, #2c3e50 0%, #3a1c71 40%, #d76d77 70%, #ffaf7b 100%)',
-  night:     'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
-  midnight:  'linear-gradient(135deg, #0a0a1a 0%, #1a0533 50%, #0d0d2b 100%)',
+  dawn:      'radial-gradient(circle at 16% 10%, rgba(255,255,255,0.72), transparent 24%), linear-gradient(135deg, #fff2df 0%, #ffd1ca 42%, #f7a9bd 72%, #d8c5ff 100%)',
+  morning:   'radial-gradient(circle at 12% 8%, rgba(255,255,255,0.72), transparent 28%), linear-gradient(135deg, #fffaf6 0%, #f8e9ea 42%, #dcecf8 100%)',
+  noon:      'radial-gradient(circle at 15% 10%, rgba(255,255,255,0.68), transparent 26%), linear-gradient(135deg, #f7fffb 0%, #dff7f3 45%, #f6d8e8 100%)',
+  afternoon: 'radial-gradient(circle at 16% 9%, rgba(255,255,255,0.72), transparent 24%), linear-gradient(135deg, #fff8df 0%, #ffe1c2 42%, #ffc0c8 72%, #e6d6ff 100%)',
+  sunset:    'radial-gradient(circle at 15% 10%, rgba(255,255,255,0.62), transparent 25%), linear-gradient(135deg, #ffe3d3 0%, #ffb4bd 44%, #deb8ff 100%)',
+  evening:   'radial-gradient(circle at 18% 12%, rgba(255,255,255,0.20), transparent 28%), linear-gradient(135deg, #231728 0%, #51304f 46%, #c87991 100%)',
+  night:     'radial-gradient(circle at 18% 12%, rgba(255,255,255,0.12), transparent 26%), linear-gradient(135deg, #0f0b1e 0%, #2c234a 52%, #533656 100%)',
+  midnight:  'radial-gradient(circle at 18% 12%, rgba(255,255,255,0.10), transparent 26%), linear-gradient(135deg, #090815 0%, #1b1430 52%, #2c1836 100%)',
 };
 
 const timeLabels: Record<string, string> = {
@@ -61,7 +61,7 @@ export function useDynamicBackground() {
         indicator = document.createElement('div');
         indicator.id = 'timeIndicator';
         indicator.style.cssText = `position:fixed;top:12px;right:12px;z-index:9999;
-          background:rgba(255,255,255,0.25);backdrop-filter:blur(10px);
+          background:rgba(255,255,255,0.18);backdrop-filter:blur(14px);
           border-radius:20px;padding:4px 12px;font-size:13px;color:#fff;
           text-shadow:0 1px 3px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.3);
           font-family:'Caveat',cursive;cursor:pointer;`;
