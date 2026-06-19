@@ -34,4 +34,5 @@ export const MOODS: Record<string, { emoji: string; label: string; color: string
   anniversary: { emoji: '❤️', label: 'Kỷ niệm',   color: '#fecdd3', accent: '#e11d48' },
 };
 
-export const BASE_URL = 'https://destiny-s88d.onrender.com';
+const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+export const BASE_URL = typeof window !== 'undefined' && !isLocalhost ? window.location.origin : 'http://localhost:3000';

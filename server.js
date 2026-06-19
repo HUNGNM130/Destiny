@@ -389,9 +389,20 @@ app.delete("/memories/:id", async (req, res) => {
 
 app.patch("/memories/:id/position", async (req, res) => {
   try {
-    const { x, y, rotate } = req.body;
-    await pool.query("UPDATE memories SET pos_x=$1,pos_y=$2,pos_rotate=$3 WHERE id=$4", [x, y, rotate, req.params.id]);
-    res.json({ success: true });
+    const x = Number(req.body.x);
+    const y = Number(req.body.y);
+    const rotate = Number(req.body.rotate || 0);
+    const id = Number(req.params.id);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(rotate) || !Number.isInteger(id)) {
+      return res.status(400).json({ error: "Vị trí không hợp lệ" });
+    }
+    const r = await pool.query(
+      "UPDATE memories SET pos_x=$1,pos_y=$2,pos_rotate=$3 WHERE id=$4 RETURNING id,pos_x,pos_y,pos_rotate",
+      [x, y, rotate, id]
+    );
+    if (r.rowCount === 0) return res.status(404).json({ error: "Không tìm thấy kỷ niệm" });
+    io.emit("memoryMoved", { id, x, y, rotate });
+    res.json({ success: true, id, x, y, rotate });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -456,10 +467,20 @@ app.delete("/videos/:id", async (req, res) => {
 
 app.patch("/videos/:id/position", async (req, res) => {
   try {
-    const { x, y, rotate } = req.body;
-    await pool.query("UPDATE videos SET pos_x=$1,pos_y=$2,pos_rotate=$3 WHERE id=$4", [x, y, rotate, req.params.id]);
-    io.emit("videoMoved", { id: req.params.id, x, y, rotate });
-    res.json({ success: true });
+    const x = Number(req.body.x);
+    const y = Number(req.body.y);
+    const rotate = Number(req.body.rotate || 0);
+    const id = Number(req.params.id);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(rotate) || !Number.isInteger(id)) {
+      return res.status(400).json({ error: "Vị trí không hợp lệ" });
+    }
+    const r = await pool.query(
+      "UPDATE videos SET pos_x=$1,pos_y=$2,pos_rotate=$3 WHERE id=$4 RETURNING id,pos_x,pos_y,pos_rotate",
+      [x, y, rotate, id]
+    );
+    if (r.rowCount === 0) return res.status(404).json({ error: "Không tìm thấy video" });
+    io.emit("videoMoved", { id, x, y, rotate });
+    res.json({ success: true, id, x, y, rotate });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

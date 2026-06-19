@@ -19,7 +19,8 @@ import type { Memory, Video, Tab } from './types';
 import { sweetConfirm } from './components/SweetAlert';
 import './styles/global.css';
 
-export const BASE_URL = 'https://destiny-s88d.onrender.com';
+const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+export const BASE_URL = typeof window !== 'undefined' && !isLocalhost ? window.location.origin : 'http://localhost:3000';
 export const API_URL = `${BASE_URL}/memories`;
 export const VIDEO_API_URL = `${BASE_URL}/videos`;
 
@@ -80,6 +81,18 @@ export default function App() {
       return [v, ...prev];
     }),
     onVideoDeleted: (data) => setVideos(prev => prev.filter(v => v.id !== data.id)),
+    onMemoryMoved: (data) => setMemories(prev =>
+      prev.map(m => m.id === Number(data.id)
+        ? { ...m, pos_x: data.x, pos_y: data.y, pos_rotate: data.rotate }
+        : m
+      )
+    ),
+    onVideoMoved: (data) => setVideos(prev =>
+      prev.map(v => v.id === Number(data.id)
+        ? { ...v, pos_x: data.x, pos_y: data.y, pos_rotate: data.rotate }
+        : v
+      )
+    ),
   });
 
   const handleTabChange = (newTab: Tab) => {
