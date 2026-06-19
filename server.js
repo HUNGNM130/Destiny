@@ -10,19 +10,6 @@ const { Pool }   = require("pg");
 const { Server } = require("socket.io");
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
-const ytdlp      = require("yt-dlp-exec");
-const ffmpeg     = require("fluent-ffmpeg");
-
-// ─── Setup ───────────────────────────────────────────────────────────────────
-// Dùng system ffmpeg (Railway/Render đều có sẵn qua nixpacks)
-// ffmpeg-static fallback nếu không có system ffmpeg
-try {
-  const ffmpegPath = require("ffmpeg-static");
-  if (ffmpegPath) ffmpeg.setFfmpegPath(ffmpegPath);
-} catch (e) {
-  console.log("Using system ffmpeg");
-}
-
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key:    process.env.CLOUDINARY_API_KEY,
@@ -477,32 +464,13 @@ app.patch("/videos/:id/position", async (req, res) => {
 });
 
 // ─── YouTube MP3 ──────────────────────────────────────────────────────────────
+// Disabled on Railway free/low-memory deploys to keep the build under 500MB.
+// The old implementation required Python + ffmpeg + yt-dlp, which made Railway builds fail.
 app.post("/youtube-mp3", async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ success: false, message: "Missing YouTube URL" });
-
-  const id        = Date.now();
-  const tempVideo = path.join(__dirname, `temp_${id}.webm`);
-  const tempAudio = path.join(__dirname, `temp_${id}.mp3`);
-  const cleanup   = () => {
-    if (fs.existsSync(tempVideo)) fs.unlinkSync(tempVideo);
-    if (fs.existsSync(tempAudio)) fs.unlinkSync(tempAudio);
-  };
-
-  try {
-    await ytdlp(url, {
-      output: tempVideo, format: "bestaudio",
-      noCheckCertificates: true, preferFreeFormats: true, youtubeSkipDashManifest: true,
-    });
-
-    ffmpeg(tempVideo)
-      .audioBitrate(128).format("mp3").save(tempAudio)
-      .on("end", () => res.download(tempAudio, "music.mp3", cleanup))
-      .on("error", (err) => { console.error("FFmpeg error:", err); cleanup(); res.status(500).json({ success: false }); });
-  } catch (err) {
-    console.error("YouTube error:", err); cleanup();
-    res.status(500).json({ success: false, message: "YouTube download failed" });
-  }
+  res.status(501).json({
+    success: false,
+    message: "Tính năng tải YouTube MP3 đang tạm tắt trên bản deploy nhẹ Railway để tránh vượt giới hạn 500MB."
+  });
 });
 
 // ─── SPA Fallback ─────────────────────────────────────────────────────────────
