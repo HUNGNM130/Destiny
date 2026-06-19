@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { BASE_URL } from '../App';
+import { BASE_URL, VIDEO_API_URL } from '../App';
 import { toast } from './SweetAlert';
 
 interface GiftConfig {
@@ -48,7 +48,26 @@ const defaultConfig: GiftConfig = {
   giftEndDate: '',
 };
 
-type Section = 'general' | 'effects' | 'letter' | 'media' | 'schedule';
+type Section = 'general' | 'effects' | 'letter' | 'media' | 'library' | 'schedule';
+
+interface MediaAuditItem {
+  id: number;
+  title: string;
+  date?: string;
+  image?: string | null;
+  status: 'ok' | 'broken' | 'missing' | 'embedded' | 'unchecked';
+  reason?: string;
+}
+
+interface AdminVideoItem {
+  id: number;
+  title: string;
+  date?: string;
+  description?: string;
+  filename?: string | null;
+  url?: string | null;
+}
+
 
 export function DashboardTab() {
   const [cfg, setCfg] = useState<GiftConfig>(defaultConfig);
@@ -56,6 +75,10 @@ export function DashboardTab() {
   const [saving, setSaving] = useState(false);
   const [section, setSection] = useState<Section>('general');
   const [serverImages, setServerImages] = useState<string[]>([]);
+  const [auditItems, setAuditItems] = useState<MediaAuditItem[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [adminVideos, setAdminVideos] = useState<AdminVideoItem[]>([]);
+  const [videoQuery, setVideoQuery] = useState('');
   const [uploading, setUploading] = useState(false);
   const [morphTextsArr, setMorphTextsArr] = useState<string[]>(['happy', "women's day", 'em iu']);
   const [sphereImagesArr, setSphereImagesArr] = useState<string[]>([]);
@@ -126,6 +149,59 @@ export function DashboardTab() {
     if (cfg.letterImage === url) setCfg(c => ({ ...c, letterImage: '' }));
   };
 
+
+  const loadMediaAudit = async () => {
+    setAuditLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/admin/media-audit`);
+      const data = await res.json();
+      setAuditItems(data.items || []);
+    } catch {
+      toast('Không tải được danh sách ảnh DB', 'error');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const loadAdminVideos = async () => {
+    try {
+      const res = await fetch(VIDEO_API_URL);
+      const data = await res.json();
+      setAdminVideos(Array.isArray(data) ? data : []);
+    } catch {
+      toast('Không tải được video', 'error');
+    }
+  };
+
+  const clearMemoryImage = async (id: number) => {
+    const ok = window.confirm('Xóa link ảnh khỏi kỷ niệm này? Nội dung kỷ niệm vẫn được giữ.');
+    if (!ok) return;
+    const res = await fetch(`${BASE_URL}/api/admin/memories/${id}/image`, { method: 'DELETE' });
+    if (res.ok) {
+      toast('Đã xóa link ảnh lỗi khỏi DB', 'success');
+      loadMediaAudit();
+    } else {
+      toast('Xóa link ảnh thất bại', 'error');
+    }
+  };
+
+  const deleteVideoAdmin = async (id: number) => {
+    const ok = window.confirm('Xóa video này khỏi app?');
+    if (!ok) return;
+    const res = await fetch(`${VIDEO_API_URL}/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setAdminVideos(prev => prev.filter(v => v.id !== id));
+      toast('Đã xóa video', 'success');
+    }
+  };
+
+  useEffect(() => {
+    if (section === 'library') {
+      loadMediaAudit();
+      loadAdminVideos();
+    }
+  }, [section]);
+
   const field = (key: keyof GiftConfig, value: string) =>
     setCfg(c => ({ ...c, [key]: value }));
 
@@ -143,6 +219,7 @@ export function DashboardTab() {
     { id: 'effects',  emoji: '✨',  label: 'Hiệu ứng' },
     { id: 'letter',   emoji: '💌',  label: 'Lá thư' },
     { id: 'media',    emoji: '🖼️',  label: 'Ảnh & Nhạc' },
+    { id: 'library',  emoji: '🗂️',  label: 'Quản lý media' },
     { id: 'schedule', emoji: '📅',  label: 'Lịch hiển thị' },
   ];
 
@@ -365,6 +442,73 @@ export function DashboardTab() {
                 <span style={{ fontFamily:'var(--font-hand)', color:'var(--plum)', minWidth:'36px' }}>
                   {parseFloat(cfg.bgVolume || '0.55').toFixed(2)}
                 </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {/* ── LIBRARY ── */}
+        {section === 'library' && (
+          <div className="db-section">
+            <div className="db-card db-card-wide">
+              <div className="db-card-title">🧯 Kiểm tra ảnh kỷ niệm trong database</div>
+              <p className="db-help">Chỗ này giúp tìm ảnh vẫn còn lưu link trong DB nhưng không hiện trên app. Ảnh lỗi có thể xóa link để kỷ niệm không còn bị card trắng.</p>
+              <div className="db-admin-summary">
+                <div><b>{auditItems.length}</b><span>Tổng record</span></div>
+                <div><b>{auditItems.filter(x => x.status === 'ok' || x.status === 'embedded').length}</b><span>Ảnh OK</span></div>
+                <div><b>{auditItems.filter(x => x.status === 'broken').length}</b><span>Ảnh lỗi</span></div>
+                <div><b>{auditItems.filter(x => x.status === 'missing').length}</b><span>Thiếu ảnh</span></div>
+              </div>
+              <div style={{ display:'flex', gap:'10px', flexWrap:'wrap', margin:'12px 0' }}>
+                <button className="db-btn-outline" onClick={loadMediaAudit}>{auditLoading ? '⏳ Đang quét...' : '🔍 Quét lại ảnh'}</button>
+                <button className="db-btn-outline" onClick={() => navigator.clipboard.writeText(JSON.stringify(auditItems.filter(x => x.status === 'broken'), null, 2))}>📋 Copy ảnh lỗi</button>
+              </div>
+              <div className="db-media-table">
+                {auditItems.map(item => (
+                  <div className={`db-media-row ${item.status}`} key={item.id}>
+                    <div className="db-media-thumb">
+                      {item.image ? <img src={item.image} alt="" onError={e => { (e.currentTarget.parentElement?.parentElement)?.classList.add('broken'); }} /> : <span>—</span>}
+                    </div>
+                    <div className="db-media-info">
+                      <strong>#{item.id} · {item.title}</strong>
+                      <small>{item.image || 'Không có ảnh'}</small>
+                      <em>{item.reason || item.status}</em>
+                    </div>
+                    <div className="db-media-actions">
+                      {item.image && <button onClick={() => window.open(item.image || '', '_blank')}>Mở</button>}
+                      {item.image && <button onClick={() => navigator.clipboard.writeText(item.image || '')}>Copy</button>}
+                      {item.image && <button className="danger" onClick={() => clearMemoryImage(item.id)}>Xóa link ảnh</button>}
+                    </div>
+                  </div>
+                ))}
+                {!auditItems.length && <div className="empty-state"><span className="big-heart">🖼️</span><h2>Chưa có dữ liệu</h2><p>Bấm “Quét lại ảnh” để kiểm tra.</p></div>}
+              </div>
+            </div>
+
+            <div className="db-card db-card-wide">
+              <div className="db-card-title">🎬 Quản lý video</div>
+              <div style={{ display:'flex', gap:'10px', flexWrap:'wrap', marginBottom:'12px' }}>
+                <input className="db-input" style={{ flex:1, margin:0 }} value={videoQuery} onChange={e => setVideoQuery(e.target.value)} placeholder="Tìm video theo tên hoặc mô tả..." />
+                <button className="db-btn-outline" onClick={loadAdminVideos}>↻ Làm mới</button>
+              </div>
+              <div className="db-video-grid">
+                {adminVideos
+                  .filter(v => !videoQuery.trim() || [v.title, v.description].some(x => (x || '').toLowerCase().includes(videoQuery.toLowerCase())))
+                  .map(v => {
+                    const src = v.url || (v.filename ? `${BASE_URL}/videos-file/${v.filename}` : '');
+                    return (
+                      <div className="db-video-item" key={v.id}>
+                        {src ? <video src={src} controls preload="metadata" /> : <div className="db-video-missing">Không có file</div>}
+                        <strong>{v.title}</strong>
+                        <small>{v.description || 'Không có mô tả'}</small>
+                        <div className="db-media-actions">
+                          {src && <button onClick={() => window.open(src, '_blank')}>Mở tab</button>}
+                          <button className="danger" onClick={() => deleteVideoAdmin(v.id)}>Xóa</button>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           </div>

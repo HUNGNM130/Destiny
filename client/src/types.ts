@@ -27,12 +27,5 @@ export interface Video {
   pos_rotate?: number | null;
 }
 
-export const MOODS: Record<string, { emoji: string; label: string; color: string; accent: string }> = {
-  happy:       { emoji: '😊', label: 'Vui vẻ',    color: '#fde68a', accent: '#f59e0b' },
-  sad:         { emoji: '😢', label: 'Buồn',       color: '#bfdbfe', accent: '#3b82f6' },
-  miss:        { emoji: '💭', label: 'Nhớ nhau',   color: '#e9d5ff', accent: '#8b5cf6' },
-  anniversary: { emoji: '❤️', label: 'Kỷ niệm',   color: '#fecdd3', accent: '#e11d48' },
-};
-
 const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 export const BASE_URL = typeof window !== 'undefined' && !isLocalhost ? window.location.origin : 'http://localhost:3000';

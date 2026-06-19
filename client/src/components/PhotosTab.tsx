@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Memory } from '../types';
-import { MOODS } from '../types';
 import { API_URL } from '../App';
 
 interface Props {
@@ -16,7 +15,7 @@ type SortMode = 'newest' | 'oldest' | 'title';
 type ViewMode = 'scrapbook' | 'grid';
 
 const TAPE_COLORS = ['rgba(255,230,140,0.8)','rgba(200,200,255,0.7)','rgba(255,200,200,0.8)','rgba(180,255,200,0.7)'];
-const STICKERS: Record<string, string> = { happy:'🌸', sad:'🌧️', miss:'🌙', anniversary:'💌' };
+const STICKERS = ['🌸', '💌', '✨', '🌙', '🫶', '🎀'];
 const STORAGE_KEY = 'love-diary-favorites-v2';
 
 function escapeHTML(value: unknown) {
@@ -46,7 +45,6 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
 
   const [containerWidth, setContainerWidth] = useState(window.innerWidth);
   const [query, setQuery] = useState('');
-  const [moodFilter, setMoodFilter] = useState('all');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('scrapbook');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
@@ -54,6 +52,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
   });
   const [viewer, setViewer] = useState<Memory | null>(null);
+  const [slideshow, setSlideshow] = useState(false);
 
   const cols = Math.max(1, Math.floor((containerWidth - 40) / (viewMode === 'grid' ? 250 : 240)));
   const colsRef = useRef(cols);
@@ -62,7 +61,6 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
   const filteredMemories = useMemo(() => {
     const q = query.trim().toLowerCase();
     return memories
-      .filter(m => moodFilter === 'all' || (m.mood || 'happy') === moodFilter)
       .filter(m => !onlyFavorites || favorites.includes(m.id))
       .filter(m => !q || [m.title, m.description, m.location, m.music].some(v => (v || '').toLowerCase().includes(q)))
       .sort((a, b) => {
@@ -71,7 +69,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
         const db = new Date(b.date).getTime();
         return sortMode === 'newest' ? db - da : da - db;
       });
-  }, [memories, query, moodFilter, sortMode, onlyFavorites, favorites]);
+  }, [memories, query, sortMode, onlyFavorites, favorites]);
 
   const stats = useMemo(() => {
     const withImage = memories.filter(m => m.image).length;
@@ -169,7 +167,39 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
   const surpriseMe = () => {
     if (!filteredMemories.length) return;
     const random = filteredMemories[Math.floor(Math.random() * filteredMemories.length)];
+    setSlideshow(false);
     setViewer(random);
+  };
+
+  const startSlideshow = () => {
+    const withImage = filteredMemories.filter(m => m.image);
+    if (!withImage.length) return;
+    setViewer(withImage[0]);
+    setSlideshow(true);
+  };
+
+  const goViewer = (step: number) => {
+    if (!viewer) return;
+    const withImage = filteredMemories.filter(m => m.image);
+    const idx = Math.max(0, withImage.findIndex(m => m.id === viewer.id));
+    const next = withImage[(idx + step + withImage.length) % withImage.length];
+    if (next) setViewer(next);
+  };
+
+  useEffect(() => {
+    if (!slideshow || !viewer) return;
+    const timer = window.setInterval(() => goViewer(1), 3500);
+    return () => window.clearInterval(timer);
+  }, [slideshow, viewer, filteredMemories]);
+
+  const exportMemories = () => {
+    const blob = new Blob([JSON.stringify(memories, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `love-diary-memories-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -190,14 +220,12 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     container.style.minHeight = viewMode === 'grid' ? 'auto' : (rows * 380 + 100) + 'px';
 
     filteredMemories.forEach((memory, index) => {
-      const mood = memory.mood || 'happy';
-      const moodCfg = MOODS[mood] || MOODS.happy;
       const pos = getInitialPos(memory, index, colsRef.current, containerWidth);
       positionsRef.current[String(memory.id)] = pos;
 
       const tapeColor = TAPE_COLORS[memory.id % TAPE_COLORS.length];
       const tapeAngle = -8 + (memory.id % 5) * 4;
-      const sticker = STICKERS[mood] || '✨';
+      const sticker = STICKERS[memory.id % STICKERS.length] || '✨';
       const isFav = favorites.includes(memory.id);
       const d = new Date(memory.date);
       const dateStr = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -206,9 +234,9 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
       card.className = `memory-card scrapbook-card ${isFav ? 'is-favorite' : ''}`;
       card.dataset.id = String(memory.id);
       if (viewMode === 'scrapbook') {
-        card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;background:linear-gradient(135deg,#fff 60%,${moodCfg.color});border-top:3px solid ${moodCfg.accent};`;
+        card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;`;
       } else {
-        card.style.cssText = `background:linear-gradient(135deg,#fff 60%,${moodCfg.color});border-top:3px solid ${moodCfg.accent};`;
+        card.style.cssText = '';
       }
 
       card.innerHTML = `
@@ -264,7 +292,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
         <div className="memory-command-copy">
           <span className="eyebrow">Memory studio</span>
           <h2>Kỷ niệm của hai đứa</h2>
-          <p>Tìm nhanh, lọc theo mood, đánh dấu yêu thích và mở ảnh lớn như một album nhỏ.</p>
+          <p>Tìm nhanh, đánh dấu yêu thích, trình chiếu ảnh và mở ảnh lớn như một album nhỏ.</p>
         </div>
         <div className="memory-stats-grid">
           <div className="memory-stat"><b>{stats.total}</b><span>kỷ niệm</span></div>
@@ -278,6 +306,8 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
         <button className="btn-add" onClick={onAdd}>＋ Thêm khoảnh khắc</button>
         <button className="btn-search" onClick={() => onRefresh()}>↻ Làm mới</button>
         <button className="btn-search" onClick={surpriseMe}>🎲 Bất ngờ</button>
+        <button className="btn-search" onClick={startSlideshow}>🎞️ Trình chiếu</button>
+        <button className="btn-search" onClick={exportMemories}>⬇️ Xuất JSON</button>
         <label className="toolbar-search-wrap">
           <span>⌕</span>
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tên, nơi chốn, lời nhắn..." />
@@ -291,26 +321,22 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
         <button className={`chip-toggle ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode(v => v === 'scrapbook' ? 'grid' : 'scrapbook')}>{viewMode === 'grid' ? 'Lưới gọn' : 'Scrapbook'}</button>
       </div>
 
-      <div className="mood-filter-row">
-        <button className={`mood-chip ${moodFilter === 'all' ? 'active' : ''}`} onClick={() => setMoodFilter('all')}>✨ Tất cả</button>
-        {Object.entries(MOODS).map(([key, cfg]) => (
-          <button key={key} className={`mood-chip ${moodFilter === key ? 'active' : ''}`} onClick={() => setMoodFilter(key)}>{cfg.emoji} {cfg.label}</button>
-        ))}
-      </div>
-
       {loading && <div className="loading">đang tải những kỷ niệm... ♥</div>}
       <div id="memoryContainer" ref={containerRef} />
 
       {viewer && (
-        <div className="memory-lightbox" onClick={() => setViewer(null)}>
+        <div className="memory-lightbox" onClick={() => { setViewer(null); setSlideshow(false); }}>
           <div className="memory-lightbox-card" onClick={e => e.stopPropagation()}>
-            <button className="memory-lightbox-close" onClick={() => setViewer(null)}>✕</button>
+            <button className="memory-lightbox-close" onClick={() => { setViewer(null); setSlideshow(false); }}>✕</button>
+            <button className="memory-lightbox-nav prev" onClick={() => { setSlideshow(false); goViewer(-1); }}>‹</button>
+            <button className="memory-lightbox-nav next" onClick={() => { setSlideshow(false); goViewer(1); }}>›</button>
             {viewer.image && <img src={viewer.image} alt={viewer.title} />}
             <div className="memory-lightbox-body">
               <span className="eyebrow">{new Date(viewer.date).toLocaleDateString('vi-VN')}</span>
               <h3>{viewer.title}</h3>
               {viewer.description && <p>{viewer.description}</p>}
               <div className="lightbox-actions">
+                <button className="btn-search" onClick={() => setSlideshow(v => !v)}>{slideshow ? '⏸ Dừng trình chiếu' : '▶ Trình chiếu'}</button>
                 <button className="btn-search" onClick={() => toggleFavorite(viewer.id)}>{favorites.includes(viewer.id) ? '♥ Bỏ yêu thích' : '♡ Lưu yêu thích'}</button>
                 <button className="btn-add" onClick={() => { setViewer(null); onEdit(viewer); }}>✏️ Chỉnh sửa</button>
               </div>

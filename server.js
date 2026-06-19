@@ -302,6 +302,69 @@ app.get("/mon-qua-nho/config.js", async (req, res) => {
   }
 });
 
+
+// ─── Admin media tools ───────────────────────────────────────────────────────
+async function checkImageStatus(image) {
+  if (!image) return { status: "missing", reason: "Không có link ảnh trong DB" };
+  if (String(image).startsWith("data:image")) return { status: "embedded", reason: "Ảnh dạng base64 trong DB" };
+
+  try {
+    const url = String(image).startsWith("http")
+      ? String(image)
+      : `http://127.0.0.1:${PORT}${String(image).startsWith("/") ? image : `/${image}`}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4500);
+    let response = await fetch(url, { method: "HEAD", signal: controller.signal });
+    if (response.status === 405 || response.status === 403) {
+      response = await fetch(url, { method: "GET", signal: controller.signal });
+    }
+    clearTimeout(timer);
+    const type = response.headers.get("content-type") || "";
+    if (response.ok && type.includes("image")) return { status: "ok", reason: `OK ${response.status}` };
+    if (response.ok) return { status: "unchecked", reason: `Có phản hồi nhưng content-type là ${type || "không rõ"}` };
+    return { status: "broken", reason: `HTTP ${response.status}` };
+  } catch (err) {
+    return { status: "broken", reason: err.name === "AbortError" ? "Timeout khi tải ảnh" : err.message };
+  }
+}
+
+app.get("/api/admin/media-audit", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT id,title,date,image FROM memories ORDER BY date DESC, id DESC");
+    const items = [];
+    for (const row of r.rows) {
+      const checked = await checkImageStatus(row.image);
+      items.push({ ...row, ...checked });
+    }
+    res.json({ items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/admin/memories/:id/image", async (req, res) => {
+  try {
+    const r = await pool.query("UPDATE memories SET image=NULL WHERE id=$1 RETURNING *", [req.params.id]);
+    if (!r.rowCount) return res.status(404).json({ error: "Not found" });
+    io.emit("memoryUpdated", r.rows[0]);
+    res.json({ success: true, memory: r.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/admin/memories/:id/image", async (req, res) => {
+  try {
+    const { image } = req.body;
+    const r = await pool.query("UPDATE memories SET image=$1 WHERE id=$2 RETURNING *", [image || null, req.params.id]);
+    if (!r.rowCount) return res.status(404).json({ error: "Not found" });
+    io.emit("memoryUpdated", r.rows[0]);
+    res.json({ success: true, memory: r.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Memories ─────────────────────────────────────────────────────────────────
 app.get("/memories", async (req, res) => {
   try {
