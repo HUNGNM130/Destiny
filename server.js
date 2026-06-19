@@ -12,10 +12,15 @@ const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const ytdlp      = require("yt-dlp-exec");
 const ffmpeg     = require("fluent-ffmpeg");
-const ffmpegPath = require("ffmpeg-static");
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
-ffmpeg.setFfmpegPath(ffmpegPath);
+// Dùng ffmpeg-static nếu có, fallback về system ffmpeg (Render có sẵn)
+try {
+  const ffmpegPath = require("ffmpeg-static");
+  if (ffmpegPath) ffmpeg.setFfmpegPath(ffmpegPath);
+} catch (e) {
+  console.log("ffmpeg-static not available, using system ffmpeg");
+}
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

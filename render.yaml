@@ -2,7 +2,7 @@ services:
   - type: web
     name: love-diary
     runtime: node
-    buildCommand: npm config set registry https://registry.npmjs.org/ && npm install --registry=https://registry.npmjs.org/ && npm run build
+    buildCommand: npm config set registry https://registry.npmjs.org/ && FFMPEG_SKIP_DOWNLOAD=true npm install --registry=https://registry.npmjs.org/ && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -19,3 +19,5 @@ services:
         sync: false
       - key: ADMIN_PIN
         sync: false          # Mã PIN bí mật để vào Dashboard (mặc định: 1234)
+      - key: FFMPEG_SKIP_DOWNLOAD
+        value: "true"
