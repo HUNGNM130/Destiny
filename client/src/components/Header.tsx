@@ -5,7 +5,7 @@ function getDaysInLove() {
   return Math.floor((Date.now() - LOVE_START_DATE.getTime()) / 86400000);
 }
 
-export function Header() {
+export function Header({ memoryCount = 0, videoCount = 0 }: { memoryCount?: number; videoCount?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const circleRef    = useRef<HTMLDivElement>(null);
   const innerTextRef = useRef<HTMLDivElement>(null);
@@ -111,6 +111,12 @@ export function Header() {
       </div>
 
       <p>Mỗi khoảnh khắc là mãi mãi ✦</p>
+
+      <div className="hero-mini-dashboard">
+        <div><strong>{memoryCount}</strong><span>ảnh kỷ niệm</span></div>
+        <div><strong>{videoCount}</strong><span>video</span></div>
+        <div><strong>{days}</strong><span>ngày yêu</span></div>
+      </div>
     </header>
   );
 }

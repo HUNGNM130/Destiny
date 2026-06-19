@@ -91,7 +91,7 @@ export default function App() {
     <>
       {!introDone && <CinematicIntro onDone={() => setIntroDone(true)} />}
       <div className={`app-root ${introDone ? 'app-visible' : 'app-hidden'}`}>
-        <Header />
+        <Header memoryCount={memories.length} videoCount={videos.length} />
         <TabDock tab={tab} onTabChange={handleTabChange} />
 
         {tab === 'photos' && (

@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Memory } from '../types';
 import { MOODS } from '../types';
-import { API_URL, BASE_URL } from '../App';
+import { API_URL } from '../App';
 
 interface Props {
   memories: Memory[];
@@ -12,11 +12,20 @@ interface Props {
   onRefresh: (filters?: Record<string, string>) => void;
 }
 
+type SortMode = 'newest' | 'oldest' | 'title';
+type ViewMode = 'scrapbook' | 'grid';
+
 const TAPE_COLORS = ['rgba(255,230,140,0.8)','rgba(200,200,255,0.7)','rgba(255,200,200,0.8)','rgba(180,255,200,0.7)'];
 const STICKERS: Record<string, string> = { happy:'🌸', sad:'🌧️', miss:'🌙', anniversary:'💌' };
+const STORAGE_KEY = 'love-diary-favorites-v2';
+
+function escapeHTML(value: unknown) {
+  return String(value ?? '').replace(/[&<>'"]/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+  }[ch] || ch));
+}
 
 function getInitialPos(item: Memory, index: number, cols: number, containerWidth: number) {
-  // Always prefer server-saved position — never override with computed layout
   if (item.pos_x != null && item.pos_y != null) {
     return { x: item.pos_x!, y: item.pos_y!, rotate: item.pos_rotate ?? 0 };
   }
@@ -33,16 +42,45 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
   const containerRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<Record<string, { x: number; y: number; rotate: number }>>({});
   const draggableRef = useRef<Set<string>>(new Set());
-  const dragStateRef = useRef<{
-    card: HTMLElement; id: string; startX: number; startY: number;
-    origX: number; origY: number; moved: boolean;
-  } | null>(null);
+  const dragStateRef = useRef<{ card: HTMLElement; id: string; startX: number; startY: number; origX: number; origY: number; moved: boolean; } | null>(null);
 
   const [containerWidth, setContainerWidth] = useState(window.innerWidth);
-  // cols is only used for initial layout of unsaved cards — don't re-render on every resize
-  const cols = Math.max(1, Math.floor((containerWidth - 40) / 240));
+  const [query, setQuery] = useState('');
+  const [moodFilter, setMoodFilter] = useState('all');
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [viewMode, setViewMode] = useState<ViewMode>('scrapbook');
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [favorites, setFavorites] = useState<number[]>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+  });
+  const [viewer, setViewer] = useState<Memory | null>(null);
+
+  const cols = Math.max(1, Math.floor((containerWidth - 40) / (viewMode === 'grid' ? 250 : 240)));
   const colsRef = useRef(cols);
-  colsRef.current = cols; // keep in sync without triggering re-render
+  colsRef.current = cols;
+
+  const filteredMemories = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return memories
+      .filter(m => moodFilter === 'all' || (m.mood || 'happy') === moodFilter)
+      .filter(m => !onlyFavorites || favorites.includes(m.id))
+      .filter(m => !q || [m.title, m.description, m.location, m.music].some(v => (v || '').toLowerCase().includes(q)))
+      .sort((a, b) => {
+        if (sortMode === 'title') return a.title.localeCompare(b.title, 'vi');
+        const da = new Date(a.date).getTime();
+        const db = new Date(b.date).getTime();
+        return sortMode === 'newest' ? db - da : da - db;
+      });
+  }, [memories, query, moodFilter, sortMode, onlyFavorites, favorites]);
+
+  const stats = useMemo(() => {
+    const withImage = memories.filter(m => m.image).length;
+    const fav = memories.filter(m => favorites.includes(m.id)).length;
+    const latest = memories[0]?.date ? new Date(memories[0].date).toLocaleDateString('vi-VN') : '—';
+    return { total: memories.length, withImage, fav, latest };
+  }, [memories, favorites]);
+
+  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(favorites)); }, [favorites]);
 
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
@@ -57,8 +95,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     if (!p) return;
     try {
       await fetch(`${API_URL}/${id}/position`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ x: p.x, y: p.y, rotate: p.rotate }),
       });
     } catch { /* noop */ }
@@ -125,22 +162,34 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     });
   };
 
+  const toggleFavorite = (id: number) => {
+    setFavorites(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const surpriseMe = () => {
+    if (!filteredMemories.length) return;
+    const random = filteredMemories[Math.floor(Math.random() * filteredMemories.length)];
+    setViewer(random);
+  };
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container || loading) return;
 
     container.innerHTML = '';
     positionsRef.current = {};
+    container.classList.toggle('grid-view', viewMode === 'grid');
+    container.classList.toggle('scrapbook-view', viewMode === 'scrapbook');
 
-    if (memories.length === 0) {
-      container.innerHTML = `<div class="empty-state"><span class="big-heart">💌</span><h2>Chưa có kỷ niệm nào</h2><p>Hãy thêm khoảnh khắc đầu tiên của hai đứa nhé ♥</p></div>`;
+    if (filteredMemories.length === 0) {
+      container.innerHTML = `<div class="empty-state"><span class="big-heart">💌</span><h2>Không tìm thấy kỷ niệm</h2><p>Thử đổi bộ lọc hoặc thêm khoảnh khắc mới nhé ♥</p></div>`;
       return;
     }
 
-    const rows = Math.ceil(memories.length / cols);
-    container.style.minHeight = (rows * 360 + 100) + 'px';
+    const rows = Math.ceil(filteredMemories.length / cols);
+    container.style.minHeight = viewMode === 'grid' ? 'auto' : (rows * 380 + 100) + 'px';
 
-    memories.forEach((memory, index) => {
+    filteredMemories.forEach((memory, index) => {
       const mood = memory.mood || 'happy';
       const moodCfg = MOODS[mood] || MOODS.happy;
       const pos = getInitialPos(memory, index, colsRef.current, containerWidth);
@@ -149,30 +198,33 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
       const tapeColor = TAPE_COLORS[memory.id % TAPE_COLORS.length];
       const tapeAngle = -8 + (memory.id % 5) * 4;
       const sticker = STICKERS[mood] || '✨';
-
+      const isFav = favorites.includes(memory.id);
       const d = new Date(memory.date);
       const dateStr = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
       const card = document.createElement('div');
-      card.className = 'memory-card scrapbook-card';
+      card.className = `memory-card scrapbook-card ${isFav ? 'is-favorite' : ''}`;
       card.dataset.id = String(memory.id);
-      card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;
-        background:linear-gradient(135deg,#fff 60%,${moodCfg.color});
-        border-top:3px solid ${moodCfg.accent};`;
+      if (viewMode === 'scrapbook') {
+        card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;background:linear-gradient(135deg,#fff 60%,${moodCfg.color});border-top:3px solid ${moodCfg.accent};`;
+      } else {
+        card.style.cssText = `background:linear-gradient(135deg,#fff 60%,${moodCfg.color});border-top:3px solid ${moodCfg.accent};`;
+      }
 
       card.innerHTML = `
+        <button class="fav-btn ${isFav ? 'active' : ''}" title="Yêu thích">${isFav ? '♥' : '♡'}</button>
         <div class="tape-strip" style="background:${tapeColor};transform:rotate(${tapeAngle}deg) translateX(-50%);"></div>
         <div class="corner-sticker">${sticker}</div>
         ${memory.image
-          ? `<div class="polaroid-frame"><img src="${memory.image}?t=${Date.now()}" alt="${memory.title}" loading="lazy"/><div class="polaroid-caption">${memory.title}</div></div>`
+          ? `<button class="open-photo-btn" title="Xem lớn"><div class="polaroid-frame"><img src="${escapeHTML(memory.image)}?t=${Date.now()}" alt="${escapeHTML(memory.title)}" loading="lazy"/><div class="polaroid-caption">${escapeHTML(memory.title)}</div></div></button>`
           : `<div class="no-photo-placeholder"><div style="font-size:3rem;">♥</div></div>`
         }
         <div class="card-body">
-          <div class="card-title handwritten">${memory.title}</div>
+          <div class="card-title handwritten">${escapeHTML(memory.title)}</div>
           <div class="card-date">📅 ${dateStr}</div>
-          ${memory.location ? `<div class="card-meta">📍 ${memory.location}</div>` : ''}
-          ${memory.music    ? `<div class="card-meta">🎵 ${memory.music}</div>` : ''}
-          ${memory.description ? `<div class="card-desc">${memory.description}</div>` : ''}
+          ${memory.location ? `<div class="card-meta">📍 ${escapeHTML(memory.location)}</div>` : ''}
+          ${memory.music    ? `<div class="card-meta">🎵 ${escapeHTML(memory.music)}</div>` : ''}
+          ${memory.description ? `<div class="card-desc">${escapeHTML(memory.description)}</div>` : ''}
           <div class="card-actions">
             <button class="move-btn">📌 Di chuyển</button>
             <button class="edit-btn">✏️ Sửa</button>
@@ -180,40 +232,92 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
           </div>
         </div>`;
 
-      const moveBtn   = card.querySelector('.move-btn')   as HTMLButtonElement;
-      const editBtn   = card.querySelector('.edit-btn')   as HTMLButtonElement;
-      const deleteBtn = card.querySelector('.delete-btn') as HTMLButtonElement;
-
-      moveBtn.onclick   = () => enableMove(String(memory.id));
-      editBtn.onclick   = () => onEdit(memory);
-      deleteBtn.onclick = () => onDelete(memory.id);
+      (card.querySelector('.fav-btn') as HTMLButtonElement).onclick = () => toggleFavorite(memory.id);
+      const openBtn = card.querySelector('.open-photo-btn') as HTMLButtonElement | null;
+      if (openBtn) openBtn.onclick = () => setViewer(memory);
+      (card.querySelector('.move-btn') as HTMLButtonElement).onclick = () => enableMove(String(memory.id));
+      (card.querySelector('.edit-btn') as HTMLButtonElement).onclick = () => onEdit(memory);
+      (card.querySelector('.delete-btn') as HTMLButtonElement).onclick = () => onDelete(memory.id);
 
       makeDraggable(card, String(memory.id));
 
       card.style.opacity = '0';
-      card.style.transform = `rotate(${pos.rotate}deg) scale(0.7)`;
+      if (viewMode === 'scrapbook') card.style.transform = `rotate(${pos.rotate}deg) scale(0.7)`;
       container.appendChild(card);
 
       requestAnimationFrame(() => {
-        card.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+        card.style.transition = 'opacity 0.45s ease, transform 0.48s cubic-bezier(0.34,1.56,0.64,1)';
         card.style.opacity = '1';
-        card.style.transform = `rotate(${pos.rotate}deg) scale(1)`;
+        if (viewMode === 'scrapbook') card.style.transform = `rotate(${pos.rotate}deg) scale(1)`;
         setTimeout(() => {
           card.style.transition = '';
-          card.style.transform  = `rotate(${pos.rotate}deg)`;
+          if (viewMode === 'scrapbook') card.style.transform  = `rotate(${pos.rotate}deg)`;
           card.style.zIndex = '1';
-        }, 450);
+        }, 500);
       });
     });
-  }, [memories, loading]);
+  }, [filteredMemories, loading, viewMode, favorites, containerWidth]);
 
   return (
     <div id="pagePhotos">
-      <div className="page-toolbar">
+      <section className="memory-command-center">
+        <div className="memory-command-copy">
+          <span className="eyebrow">Memory studio</span>
+          <h2>Kỷ niệm của hai đứa</h2>
+          <p>Tìm nhanh, lọc theo mood, đánh dấu yêu thích và mở ảnh lớn như một album nhỏ.</p>
+        </div>
+        <div className="memory-stats-grid">
+          <div className="memory-stat"><b>{stats.total}</b><span>kỷ niệm</span></div>
+          <div className="memory-stat"><b>{stats.withImage}</b><span>có ảnh</span></div>
+          <div className="memory-stat"><b>{stats.fav}</b><span>yêu thích</span></div>
+          <div className="memory-stat"><b>{stats.latest}</b><span>mới nhất</span></div>
+        </div>
+      </section>
+
+      <div className="page-toolbar upgraded-toolbar">
         <button className="btn-add" onClick={onAdd}>＋ Thêm khoảnh khắc</button>
+        <button className="btn-search" onClick={() => onRefresh()}>↻ Làm mới</button>
+        <button className="btn-search" onClick={surpriseMe}>🎲 Bất ngờ</button>
+        <label className="toolbar-search-wrap">
+          <span>⌕</span>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tên, nơi chốn, lời nhắn..." />
+        </label>
+        <select className="toolbar-select" value={sortMode} onChange={e => setSortMode(e.target.value as SortMode)}>
+          <option value="newest">Mới nhất</option>
+          <option value="oldest">Cũ nhất</option>
+          <option value="title">Theo tên</option>
+        </select>
+        <button className={`chip-toggle ${onlyFavorites ? 'active' : ''}`} onClick={() => setOnlyFavorites(v => !v)}>♥ Yêu thích</button>
+        <button className={`chip-toggle ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode(v => v === 'scrapbook' ? 'grid' : 'scrapbook')}>{viewMode === 'grid' ? 'Lưới gọn' : 'Scrapbook'}</button>
       </div>
+
+      <div className="mood-filter-row">
+        <button className={`mood-chip ${moodFilter === 'all' ? 'active' : ''}`} onClick={() => setMoodFilter('all')}>✨ Tất cả</button>
+        {Object.entries(MOODS).map(([key, cfg]) => (
+          <button key={key} className={`mood-chip ${moodFilter === key ? 'active' : ''}`} onClick={() => setMoodFilter(key)}>{cfg.emoji} {cfg.label}</button>
+        ))}
+      </div>
+
       {loading && <div className="loading">đang tải những kỷ niệm... ♥</div>}
       <div id="memoryContainer" ref={containerRef} />
+
+      {viewer && (
+        <div className="memory-lightbox" onClick={() => setViewer(null)}>
+          <div className="memory-lightbox-card" onClick={e => e.stopPropagation()}>
+            <button className="memory-lightbox-close" onClick={() => setViewer(null)}>✕</button>
+            {viewer.image && <img src={viewer.image} alt={viewer.title} />}
+            <div className="memory-lightbox-body">
+              <span className="eyebrow">{new Date(viewer.date).toLocaleDateString('vi-VN')}</span>
+              <h3>{viewer.title}</h3>
+              {viewer.description && <p>{viewer.description}</p>}
+              <div className="lightbox-actions">
+                <button className="btn-search" onClick={() => toggleFavorite(viewer.id)}>{favorites.includes(viewer.id) ? '♥ Bỏ yêu thích' : '♡ Lưu yêu thích'}</button>
+                <button className="btn-add" onClick={() => { setViewer(null); onEdit(viewer); }}>✏️ Chỉnh sửa</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
