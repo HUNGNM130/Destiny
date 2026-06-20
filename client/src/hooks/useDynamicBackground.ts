@@ -32,6 +32,7 @@ function getTimeOfDay(): string {
 export function useDynamicBackground() {
   useEffect(() => {
     const applyBackground = () => {
+      if (document.documentElement.dataset.adminStyle === 'true') return;
       const tod = getTimeOfDay();
       document.body.style.transition = 'background 3s ease';
       document.body.style.background = gradients[tod];

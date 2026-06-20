@@ -3,6 +3,8 @@
               sphere & particle phases
 ════════════════════════════════════════════ */
 
+:root { --gift-primary: #ff69b4; --gift-accent: #ffb6c1; --gift-bg-start: #000000; --gift-bg-mid: #160014; --gift-bg-end: #000000; --gift-font-body: 'Pacifico', cursive; }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -10,9 +12,9 @@ body {
   min-height: 100vh;
   min-height: 100svh;
   min-height: 100dvh;
-  background-color: #000;
+  background: radial-gradient(circle at 20% 10%, var(--gift-bg-mid), transparent 32%), linear-gradient(135deg, var(--gift-bg-start), #000 45%, var(--gift-bg-end));
   color: #fff;
-  font-family: 'Pacifico', cursive;
+  font-family: var(--gift-font-body);
   /* Safe-area cho notch / home indicator */
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -59,7 +61,7 @@ canvas {
 #progress {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #ff69b4, #ffb6c1);
+  background: linear-gradient(90deg, var(--gift-primary), var(--gift-accent));
   border-radius: 3px;
   transition: width 0.3s ease;
 }

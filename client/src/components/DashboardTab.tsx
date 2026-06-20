@@ -2,9 +2,20 @@ import React, { useEffect, useState, useRef } from 'react';
 import { API_URL, BASE_URL, VIDEO_API_URL } from '../App';
 import { exportMemoriesToPDF } from '../utils/exportMemoriesPdf';
 import { toast } from './SweetAlert';
+import { applySiteStyleConfig, FONT_OPTIONS, SITE_STYLE_DEFAULTS } from '../utils/siteStyle';
 
 interface GiftConfig {
   appTitle: string;
+  appIcon: string;
+  sitePrimaryColor: string;
+  siteAccentColor: string;
+  siteBackgroundStart: string;
+  siteBackgroundMid: string;
+  siteBackgroundEnd: string;
+  siteTextColor: string;
+  siteFontBody: string;
+  siteFontDisplay: string;
+  siteFontHand: string;
   passcode: string;
   passcodeTitle: string;
   passcodeSubtitle: string;
@@ -28,6 +39,16 @@ interface GiftConfig {
 
 const defaultConfig: GiftConfig = {
   appTitle: 'Món Quà Nhỏ',
+  appIcon: 'assets/images/couple.svg',
+  sitePrimaryColor: SITE_STYLE_DEFAULTS.sitePrimaryColor,
+  siteAccentColor: SITE_STYLE_DEFAULTS.siteAccentColor,
+  siteBackgroundStart: SITE_STYLE_DEFAULTS.siteBackgroundStart,
+  siteBackgroundMid: SITE_STYLE_DEFAULTS.siteBackgroundMid,
+  siteBackgroundEnd: SITE_STYLE_DEFAULTS.siteBackgroundEnd,
+  siteTextColor: SITE_STYLE_DEFAULTS.siteTextColor,
+  siteFontBody: SITE_STYLE_DEFAULTS.siteFontBody,
+  siteFontDisplay: SITE_STYLE_DEFAULTS.siteFontDisplay,
+  siteFontHand: SITE_STYLE_DEFAULTS.siteFontHand,
   passcode: '0308',
   passcodeTitle: 'Nhập mật khẩu',
   passcodeSubtitle: 'Mở món quà đặc biệt',
@@ -49,7 +70,7 @@ const defaultConfig: GiftConfig = {
   giftEndDate: '',
 };
 
-type Section = 'general' | 'effects' | 'letter' | 'media' | 'library' | 'schedule';
+type Section = 'general' | 'site' | 'effects' | 'letter' | 'media' | 'library' | 'schedule';
 
 interface MediaAuditItem {
   id: number;
@@ -69,6 +90,30 @@ interface AdminVideoItem {
   url?: string | null;
 }
 
+const GIFT_ICON_ASSETS = [
+  { label: 'Couple', path: 'assets/images/couple.svg', usage: 'Icon mặc định, ảnh cặp đôi ở màn nhập mã' },
+  { label: 'Bear wait', path: 'assets/images/bearwait.svg', usage: 'Gấu bên trái ở màn nhập mã' },
+  { label: 'Bear flower', path: 'assets/images/bearflower.svg', usage: 'Gấu bên phải ở màn nhập mã' },
+  { label: 'Letter image', path: 'assets/images/letterimage.svg', usage: 'Ảnh minh hoạ lá thư' },
+  { label: 'Cupid letter', path: 'assets/images/cupidletter.svg', usage: 'Cupid / thư tình' },
+  { label: 'Butterfly left', path: 'assets/images/buomtrai.svg', usage: 'Bướm trang trí bên trái' },
+  { label: 'Butterfly right', path: 'assets/images/buomphai.svg', usage: 'Bướm trang trí bên phải' },
+];
+
+function resolveAssetUrl(url: string) {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('http')) return url;
+  if (url.startsWith('/')) return `${BASE_URL}${url}`;
+  if (url.startsWith('assets/')) return `${BASE_URL}/mon-qua-nho/${url}`;
+  return `${BASE_URL}/${url}`;
+}
+
+function imageDeleteUrl(url: string) {
+  const match = url.match(/\/api\/gift-images\/(\d+)\/data/);
+  if (match) return `${BASE_URL}/api/gift-images/${match[1]}`;
+  const filename = url.split('/').pop();
+  return filename ? `${BASE_URL}/api/gift-images/${filename}` : '';
+}
 
 export function DashboardTab() {
   const [cfg, setCfg] = useState<GiftConfig>(defaultConfig);
@@ -124,6 +169,8 @@ export function DashboardTab() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
+        applySiteStyleConfig(payload);
+        window.dispatchEvent(new CustomEvent('loveDiaryStyleUpdated', { detail: payload }));
         toast('Đã lưu cấu hình 💕', 'success');
       } else {
         toast('Lỗi khi lưu!', 'error');
@@ -142,8 +189,8 @@ export function DashboardTab() {
       const res = await fetch(`${BASE_URL}/api/gift-upload-image`, { method: 'POST', body: fd });
       const data = await res.json();
       if (data.url) {
-        const fullUrl = `${BASE_URL}${data.url}`;
-        setServerImages(prev => [...prev, fullUrl]);
+        const url = data.url as string;
+        setServerImages(prev => [url, ...prev]);
         toast('Tải ảnh lên thành công! 🖼️', 'success');
       }
     } catch {
@@ -153,13 +200,14 @@ export function DashboardTab() {
   };
 
   const deleteServerImage = async (url: string) => {
-    const filename = url.split('/').pop();
-    if (!filename) return;
-    await fetch(`${BASE_URL}/api/gift-images/${filename}`, { method: 'DELETE' });
+    const endpoint = imageDeleteUrl(url);
+    if (!endpoint) return;
+    await fetch(endpoint, { method: 'DELETE' });
     setServerImages(prev => prev.filter(u => u !== url));
     setSphereImagesArr(prev => prev.filter(u => u !== url));
     if (cfg.particleImage === url) setCfg(c => ({ ...c, particleImage: '' }));
     if (cfg.letterImage === url) setCfg(c => ({ ...c, letterImage: '' }));
+    if (cfg.appIcon === url) setCfg(c => ({ ...c, appIcon: 'assets/images/couple.svg' }));
   };
 
 
@@ -229,6 +277,7 @@ export function DashboardTab() {
 
   const sections: { id: Section; emoji: string; label: string }[] = [
     { id: 'general',  emoji: '⚙️',  label: 'Chung' },
+    { id: 'site',     emoji: '🎨',  label: 'Màu & font web' },
     { id: 'effects',  emoji: '✨',  label: 'Hiệu ứng' },
     { id: 'letter',   emoji: '💌',  label: 'Lá thư' },
     { id: 'media',    emoji: '🖼️',  label: 'Ảnh & Nhạc' },
@@ -314,6 +363,62 @@ export function DashboardTab() {
           </div>
         )}
 
+
+        {/* ── SITE STYLE ── */}
+        {section === 'site' && (
+          <div className="db-section">
+            <div className="db-card db-card-wide">
+              <div className="db-card-title">🎨 Màu toàn bộ website</div>
+              <p className="db-help">Các màu này được lưu vào database và áp dụng cho app chính lẫn trang quà khi mở lại.</p>
+              <div className="db-style-grid">
+                {([
+                  ['sitePrimaryColor', 'Màu chính'],
+                  ['siteAccentColor', 'Màu phụ'],
+                  ['siteBackgroundStart', 'Nền đầu'],
+                  ['siteBackgroundMid', 'Nền giữa'],
+                  ['siteBackgroundEnd', 'Nền cuối'],
+                  ['siteTextColor', 'Màu chữ'],
+                ] as [keyof GiftConfig, string][]).map(([key, label]) => (
+                  <label className="db-color-field" key={key}>
+                    <span>{label}</span>
+                    <input type="color" value={cfg[key]} onChange={e => field(key, e.target.value)} />
+                    <input className="db-input" value={cfg[key]} onChange={e => field(key, e.target.value)} />
+                  </label>
+                ))}
+              </div>
+              <div className="db-style-preview" style={{
+                background: `linear-gradient(135deg, ${cfg.siteBackgroundStart}, ${cfg.siteBackgroundMid}, ${cfg.siteBackgroundEnd})`,
+                color: cfg.siteTextColor,
+                borderColor: cfg.siteAccentColor,
+              }}>
+                <span style={{ background: cfg.sitePrimaryColor }}>♥</span>
+                <div>
+                  <b style={{ fontFamily: cfg.siteFontDisplay }}>Preview giao diện</b>
+                  <small style={{ fontFamily: cfg.siteFontBody }}>Màu và font sẽ đổi ngay sau khi bấm Lưu.</small>
+                </div>
+              </div>
+            </div>
+
+            <div className="db-card db-card-wide">
+              <div className="db-card-title">🔤 Phông chữ toàn bộ website</div>
+              <label className="db-label">Font nội dung</label>
+              <select className="db-input" value={cfg.siteFontBody} onChange={e => field('siteFontBody', e.target.value)}>
+                {FONT_OPTIONS.map(font => <option key={font.value} value={font.value}>{font.label}</option>)}
+              </select>
+              <label className="db-label">Font tiêu đề</label>
+              <select className="db-input" value={cfg.siteFontDisplay} onChange={e => field('siteFontDisplay', e.target.value)}>
+                {FONT_OPTIONS.map(font => <option key={font.value} value={font.value}>{font.label}</option>)}
+              </select>
+              <label className="db-label">Font chữ viết tay / note</label>
+              <select className="db-input" value={cfg.siteFontHand} onChange={e => field('siteFontHand', e.target.value)}>
+                {FONT_OPTIONS.map(font => <option key={font.value} value={font.value}>{font.label}</option>)}
+              </select>
+              <button className="db-btn-outline" onClick={() => setCfg(c => ({ ...c, ...SITE_STYLE_DEFAULTS }))}>↩️ Về mặc định</button>
+            </div>
+          </div>
+        )}
+
+
         {/* ── EFFECTS ── */}
         {section === 'effects' && (
           <div className="db-section">
@@ -377,7 +482,7 @@ export function DashboardTab() {
                 {cfg.letterImage && <button className="db-btn-icon" onClick={() => field('letterImage', '')}>✕</button>}
               </div>
               {cfg.letterImage && (
-                <img src={cfg.letterImage.startsWith('http') ? cfg.letterImage : `${BASE_URL}/${cfg.letterImage}`}
+                <img src={resolveAssetUrl(cfg.letterImage)}
                   alt="" style={{ width:'100%', maxWidth:'200px', borderRadius:'10px', marginTop:'8px' }} />
               )}
               <div className="db-label" style={{ marginTop:'14px' }}>Chọn từ ảnh đã upload:</div>
@@ -408,7 +513,7 @@ export function DashboardTab() {
                   <div className="db-image-grid">
                     {serverImages.map(url => (
                       <div key={url} className="db-image-item">
-                        <img src={url} alt="" />
+                        <img src={resolveAssetUrl(url)} alt="" />
                         <button className="db-image-delete" onClick={() => deleteServerImage(url)}>✕</button>
                         <div className="db-image-actions">
                           <button title="Dùng cho Particle" onClick={() => field('particleImage', url)}>🔮</button>
@@ -424,13 +529,47 @@ export function DashboardTab() {
               )}
             </div>
 
+
+            <div className="db-card db-card-wide">
+              <div className="db-card-title">🧸 Icon / hình đang dùng trong Món Quà Nhỏ</div>
+              <p className="db-help">Đây là các file icon có sẵn trong thư mục <code>public/mon-qua-nho/assets/images</code>. Bạn có thể chọn dùng làm icon trang, ảnh particle, ảnh thư hoặc thêm vào quả cầu.</p>
+              <div className="db-icon-library">
+                {GIFT_ICON_ASSETS.map(icon => {
+                  const url = `mon-qua-nho/${icon.path}`;
+                  return (
+                    <div className="db-icon-item" key={icon.path}>
+                      <img src={resolveAssetUrl(url)} alt={icon.label} />
+                      <div>
+                        <strong>{icon.label}</strong>
+                        <small>{icon.path}</small>
+                        <em>{icon.usage}</em>
+                      </div>
+                      <div className="db-image-actions">
+                        <button title="Dùng làm icon trang quà" onClick={() => field('appIcon', icon.path)}>🏷️</button>
+                        <button title="Dùng làm particle" onClick={() => field('particleImage', icon.path)}>🔮</button>
+                        <button title="Thêm vào quả cầu" onClick={() => {
+                          if (!sphereImagesArr.includes(icon.path)) setSphereImagesArr(prev => [...prev, icon.path]);
+                        }}>🌐</button>
+                        <button title="Dùng cho thư" onClick={() => field('letterImage', icon.path)}>💌</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <label className="db-label" style={{ marginTop:'14px' }}>Icon trang quà hiện tại</label>
+              <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+                <input className="db-input" style={{ flex:1, margin:0 }} value={cfg.appIcon} onChange={e => field('appIcon', e.target.value)} />
+                {cfg.appIcon && <img src={resolveAssetUrl(cfg.appIcon)} alt="" style={{ width:42, height:42, objectFit:'contain' }} />}
+              </div>
+            </div>
+
             <div className="db-card">
               <div className="db-card-title">🌐 Ảnh trên quả cầu</div>
               {sphereImagesArr.length === 0
                 ? <div style={{ color:'var(--plum-soft)', fontFamily:'var(--font-hand)', opacity:0.6 }}>Chưa có ảnh nào. Chọn từ server bên trên 🌐</div>
                 : sphereImagesArr.map((url, i) => (
                     <div key={i} style={{ display:'flex', gap:'8px', alignItems:'center', marginBottom:'8px' }}>
-                      <img src={url} alt="" style={{ width:'48px', height:'48px', objectFit:'cover', borderRadius:'8px' }} />
+                      <img src={resolveAssetUrl(url)} alt="" style={{ width:'48px', height:'48px', objectFit:'cover', borderRadius:'8px' }} />
                       <span style={{ flex:1, fontSize:'0.8rem', color:'var(--plum-soft)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{url}</span>
                       <button className="db-btn-icon" onClick={() => setSphereImagesArr(prev => prev.filter((_,j) => j !== i))}>✕</button>
                     </div>
@@ -607,7 +746,7 @@ function ImagePicker({ images, selected, onSelect }: { images: string[]; selecte
           className={`db-image-item ${selected === url ? 'selected' : ''}`}
           onClick={() => onSelect(selected === url ? '' : url)}
         >
-          <img src={url} alt="" />
+          <img src={resolveAssetUrl(url)} alt="" />
           {selected === url && <div className="db-image-check">✓</div>}
         </div>
       ))}

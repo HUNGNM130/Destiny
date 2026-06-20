@@ -10,6 +10,31 @@
   var PASSCODE       = cfg.passcode || '0308';
   var enablePasscode = cfg.enablePasscode !== false;
 
+  // Áp dụng title, icon, màu và font từ Dashboard admin
+  if (cfg.appTitle) {
+    document.title = cfg.appTitle;
+    var appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appleTitle) appleTitle.setAttribute('content', cfg.appTitle);
+  }
+  if (cfg.appIcon) {
+    document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(function (link) {
+      link.setAttribute('href', cfg.appIcon);
+    });
+  }
+  if (cfg.siteStyle) {
+    var st = cfg.siteStyle;
+    var root = document.documentElement;
+    if (st.primaryColor) root.style.setProperty('--gift-primary', st.primaryColor);
+    if (st.accentColor) root.style.setProperty('--gift-accent', st.accentColor);
+    if (st.backgroundStart) root.style.setProperty('--gift-bg-start', st.backgroundStart);
+    if (st.backgroundMid) root.style.setProperty('--gift-bg-mid', st.backgroundMid);
+    if (st.backgroundEnd) root.style.setProperty('--gift-bg-end', st.backgroundEnd);
+    if (st.fontBody) {
+      root.style.setProperty('--gift-font-body', st.fontBody);
+      document.body.style.fontFamily = st.fontBody;
+    }
+  }
+
   var passcodeScreen = document.getElementById('passcodeScreen');
   var passcodeDots   = document.getElementById('passcodeDots');
   var passcodeBears  = document.getElementById('passcodeBears');

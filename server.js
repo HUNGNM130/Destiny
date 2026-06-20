@@ -93,10 +93,29 @@ const pool = new Pool({
       )
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS gift_images (
+        id          SERIAL PRIMARY KEY,
+        filename    VARCHAR(255),
+        mime_type   VARCHAR(100),
+        data_url    TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Insert defaults if not exists
     const defaults = [
       ['appTitle',               'Món Quà Nhỏ'],
-      ['appIcon',                'assets/images/couple.png'],
+      ['appIcon',                'assets/images/couple.svg'],
+      ['sitePrimaryColor',       '#c97b8a'],
+      ['siteAccentColor',        '#e8a0b0'],
+      ['siteBackgroundStart',    '#fff5ee'],
+      ['siteBackgroundMid',      '#ffd3cf'],
+      ['siteBackgroundEnd',      '#cbb7ff'],
+      ['siteTextColor',          '#3d1a26'],
+      ['siteFontBody',           "'DM Sans', system-ui, sans-serif"],
+      ['siteFontDisplay',        "'Playfair Display', Georgia, serif"],
+      ['siteFontHand',           "'Caveat', cursive"],
       ['passcode',               '0308'],
       ['passcodeTitle',          'Nhập mật khẩu'],
       ['passcodeSubtitle',       'Mở món quà đặc biệt'],
@@ -125,6 +144,7 @@ const pool = new Pool({
         [k, v]
       );
     }
+    await pool.query("UPDATE gift_config SET config_value='assets/images/couple.svg' WHERE config_key='appIcon' AND config_value='assets/images/couple.png'").catch(() => {});
 
     console.log("✅ Tables ready");
   } catch (err) {
@@ -165,19 +185,16 @@ const videoStorage = multer.diskStorage({
     cb(null, Date.now() + "-" + Math.round(Math.random() * 1e9) + path.extname(file.originalname)),
 });
 
-// Gift image storage – local disk (served at /gift-uploads)
-const giftImageStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads-gift/"),
-  filename:    (req, file, cb) =>
-    cb(null, Date.now() + "-" + Math.round(Math.random() * 1e9) + path.extname(file.originalname)),
-});
+// Gift images are stored in PostgreSQL as data URLs so they survive Railway redeploys.
+const giftImageStorage = multer.memoryStorage();
 
 const uploadImage      = multer({ storage: imageStorage });
 const uploadVideo      = multer({ storage: videoStorage });
 const uploadGiftImage  = multer({
   storage: giftImageStorage,
+  limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = /jpeg|jpg|png|webp|gif/;
+    const allowed = /jpeg|jpg|png|webp|gif|svg\+xml/;
     cb(null, allowed.test(file.mimetype));
   },
 });
@@ -257,26 +274,74 @@ app.put("/api/gift-config", async (req, res) => {
   }
 });
 
-// POST /api/gift-upload-image  → upload gift image, returns URL
-app.post("/api/gift-upload-image", uploadGiftImage.single("image"), (req, res) => {
+// POST /api/gift-upload-image  → upload gift image into DB, returns stable URL
+app.post("/api/gift-upload-image", uploadGiftImage.single("image"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file" });
-  const url = `/gift-uploads/${req.file.filename}`;
-  res.json({ success: true, url });
+  try {
+    const mime = req.file.mimetype || "image/jpeg";
+    const base64 = req.file.buffer.toString("base64");
+    const dataUrl = `data:${mime};base64,${base64}`;
+    const r = await pool.query(
+      "INSERT INTO gift_images (filename,mime_type,data_url) VALUES ($1,$2,$3) RETURNING id",
+      [req.file.originalname || null, mime, dataUrl]
+    );
+    const url = `/api/gift-images/${r.rows[0].id}/data`;
+    res.json({ success: true, url, id: r.rows[0].id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// GET /api/gift-images  → list all uploaded gift images
-app.get("/api/gift-images", (req, res) => {
-  const dir = path.join(__dirname, "uploads-gift");
-  const files = fs.readdirSync(dir).filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f));
-  const urls = files.map(f => `/gift-uploads/${f}`);
-  res.json(urls);
+// GET /api/gift-images  → list DB gift images (plus legacy local images if present)
+app.get("/api/gift-images", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT id FROM gift_images ORDER BY created_at DESC, id DESC");
+    const urls = r.rows.map(row => `/api/gift-images/${row.id}/data`);
+    const dir = path.join(__dirname, "uploads-gift");
+    if (fs.existsSync(dir)) {
+      const legacy = fs.readdirSync(dir)
+        .filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f))
+        .map(f => `/gift-uploads/${f}`);
+      urls.push(...legacy);
+    }
+    res.json(urls);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// DELETE /api/gift-images/:filename
-app.delete("/api/gift-images/:filename", (req, res) => {
-  const fp = path.join(__dirname, "uploads-gift", req.params.filename);
-  if (fs.existsSync(fp)) fs.unlinkSync(fp);
-  res.json({ success: true });
+// GET /api/gift-images/:id/data  → serve a DB-stored image
+app.get("/api/gift-images/:id/data", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).send("Bad image id");
+    const r = await pool.query("SELECT mime_type,data_url FROM gift_images WHERE id=$1", [id]);
+    if (!r.rowCount) return res.status(404).send("Not found");
+    const dataUrl = r.rows[0].data_url || "";
+    const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
+    if (!match) return res.status(500).send("Invalid stored image");
+    res.setHeader("Content-Type", r.rows[0].mime_type || match[1] || "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.send(Buffer.from(match[2], "base64"));
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// DELETE /api/gift-images/:id  → delete DB image, or legacy file by filename
+app.delete("/api/gift-images/:id", async (req, res) => {
+  try {
+    const maybeId = Number(req.params.id);
+    if (Number.isInteger(maybeId)) {
+      await pool.query("DELETE FROM gift_images WHERE id=$1", [maybeId]);
+      return res.json({ success: true });
+    }
+    const fp = path.join(__dirname, "uploads-gift", req.params.id);
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /mon-qua-nho/config.js  → dynamic JS config for the gift page
@@ -293,7 +358,18 @@ app.get("/mon-qua-nho/config.js", async (req, res) => {
 
     const js = `window.APP_CONFIG = ${JSON.stringify({
       appTitle:                cfg.appTitle         || "Món Quà Nhỏ",
-      appIcon:                 cfg.appIcon          || "assets/images/couple.png",
+      appIcon:                 cfg.appIcon          || "assets/images/couple.svg",
+      siteStyle: {
+        primaryColor:       cfg.sitePrimaryColor    || "#c97b8a",
+        accentColor:        cfg.siteAccentColor     || "#e8a0b0",
+        backgroundStart:    cfg.siteBackgroundStart || "#fff5ee",
+        backgroundMid:      cfg.siteBackgroundMid   || "#ffd3cf",
+        backgroundEnd:      cfg.siteBackgroundEnd   || "#cbb7ff",
+        textColor:          cfg.siteTextColor       || "#3d1a26",
+        fontBody:           cfg.siteFontBody        || "'DM Sans', system-ui, sans-serif",
+        fontDisplay:        cfg.siteFontDisplay     || "'Playfair Display', Georgia, serif",
+        fontHand:           cfg.siteFontHand        || "'Caveat', cursive",
+      },
       passcode:                cfg.passcode         || "0308",
       passcodeTitle:           cfg.passcodeTitle    || "Nhập mật khẩu",
       passcodeSubtitle:        cfg.passcodeSubtitle || "Mở món quà đặc biệt",

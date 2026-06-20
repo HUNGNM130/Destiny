@@ -24,6 +24,7 @@ import { VideoFormModal } from './components/VideoFormModal';
 import { VideoPlayerModal } from './components/VideoPlayerModal';
 import { useSocket } from './hooks/useSocket';
 import { useDynamicBackground } from './hooks/useDynamicBackground';
+import { applySiteStyleConfig } from './utils/siteStyle';
 import type { Memory, Video, Tab } from './types';
 import { sweetConfirm } from './components/SweetAlert';
 import './styles/global.css';
@@ -49,6 +50,23 @@ export default function App() {
   const [memoryViewer, setMemoryViewer] = useState<Memory | null>(null);
 
   useDynamicBackground();
+
+  useEffect(() => {
+    const applyFromServer = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/gift-config`);
+        const cfg = await res.json();
+        applySiteStyleConfig(cfg);
+      } catch { /* keep default theme */ }
+    };
+    applyFromServer();
+    const onStyleUpdated = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {};
+      applySiteStyleConfig(detail);
+    };
+    window.addEventListener('loveDiaryStyleUpdated', onStyleUpdated);
+    return () => window.removeEventListener('loveDiaryStyleUpdated', onStyleUpdated);
+  }, []);
 
   const loadMemories = useCallback(async (filters: Record<string, string> = {}) => {
     setLoadingMemories(true);
