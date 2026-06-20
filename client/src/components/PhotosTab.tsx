@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Memory } from '../types';
 import { API_URL } from '../App';
+import { BASE_URL } from '../types';
+import { isCapsuleLocked, countdownTo } from '../utils/memoryFeatures';
 
 interface Props {
   memories: Memory[];
@@ -64,7 +66,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     const q = query.trim().toLowerCase();
     return memories
       .filter(m => !onlyFavorites || favorites.includes(m.id))
-      .filter(m => !q || [m.title, m.description, m.location, m.music].some(v => (v || '').toLowerCase().includes(q)))
+      .filter(m => !q || [m.title, m.description, m.location, m.place_name, m.music, m.music_url].some(v => (v || '').toLowerCase().includes(q)))
       .sort((a, b) => {
         if (sortMode === 'title') return a.title.localeCompare(b.title, 'vi');
         const da = new Date(a.date).getTime();
@@ -214,10 +216,15 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
   }, [slideshow, viewer, filteredMemories]);
 
   const shareMemory = async (memory: Memory) => {
-    const url = `${window.location.origin}${window.location.pathname}?memory=${memory.id}`;
+    let url = `${window.location.origin}${window.location.pathname}?memory=${memory.id}`;
+    try {
+      const res = await fetch(`${BASE_URL}/memories/${memory.id}/share`, { method: 'POST' });
+      const data = await res.json();
+      if (data?.url) url = `${window.location.origin}${data.url}`;
+    } catch { /* fallback local link */ }
     try {
       await navigator.clipboard.writeText(url);
-      alert('Đã copy link kỷ niệm 💌');
+      alert('Đã copy link share public 💌');
     } catch {
       window.prompt('Copy link kỷ niệm:', url);
     }
@@ -268,9 +275,11 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
       const isFav = favorites.includes(memory.id);
       const d = new Date(memory.date);
       const dateStr = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const locked = isCapsuleLocked(memory);
+      const capsuleText = locked ? countdownTo(memory.capsule_unlock_at) : '';
 
       const card = document.createElement('div');
-      card.className = `memory-card scrapbook-card ${isFav ? 'is-favorite' : ''}`;
+      card.className = `memory-card scrapbook-card ${isFav ? 'is-favorite' : ''} ${locked ? 'capsule-locked' : ''}`;
       card.dataset.id = String(memory.id);
       if (viewMode === 'scrapbook') {
         card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;`;
@@ -283,18 +292,21 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
         <div class="tape-strip" style="background:${tapeColor};transform:rotate(${tapeAngle}deg) translateX(-50%);"></div>
         <div class="corner-sticker">${sticker}</div>
         ${memory.image
-          ? `<button class="open-photo-btn" title="Xem lớn"><div class="polaroid-frame"><img src="${escapeHTML(memory.image)}?t=${Date.now()}" alt="${escapeHTML(memory.title)}" loading="lazy"/><div class="polaroid-caption">${escapeHTML(memory.title)}</div></div></button>`
-          : `<div class="no-photo-placeholder"><div style="font-size:3rem;">♥</div></div>`
+          ? `<button class="open-photo-btn" title="Xem lớn"><div class="polaroid-frame ${locked ? 'blurred-capsule' : ''}"><img src="${escapeHTML(memory.image)}?t=${Date.now()}" alt="${escapeHTML(memory.title)}" loading="lazy"/><div class="polaroid-caption">${locked ? '🔒 Time capsule' : escapeHTML(memory.title)}</div></div></button>`
+          : `<div class="no-photo-placeholder"><div style="font-size:3rem;">${locked ? '🔒' : '♥'}</div></div>`
         }
+        ${locked ? `<div class="capsule-overlay-card"><b>🔒 Capsule đang khóa</b><span>${escapeHTML(capsuleText)}</span></div>` : ''}
         <div class="card-body">
           <div class="card-title handwritten">${escapeHTML(memory.title)}</div>
           <div class="card-date">📅 ${dateStr}</div>
-          ${memory.location ? `<div class="card-meta">📍 ${escapeHTML(memory.location)}</div>` : ''}
+          ${memory.location || memory.place_name ? `<div class="card-meta">📍 ${escapeHTML(memory.place_name || memory.location)}</div>` : ''}
           ${memory.music    ? `<div class="card-meta">🎵 ${escapeHTML(memory.music)}</div>` : ''}
-          ${memory.description ? `<div class="card-desc">${escapeHTML(memory.description)}</div>` : ''}
+          ${memory.weather_summary ? `<div class="card-meta">${escapeHTML(memory.weather_icon || '🌦️')} ${escapeHTML(memory.weather_summary)}${memory.weather_temp != null ? ` · ${escapeHTML(memory.weather_temp)}°C` : ''}</div>` : ''}
+          ${locked ? `<div class="card-desc">Nội dung được khóa tới ngày mở capsule.</div>` : (memory.description ? `<div class="card-desc">${escapeHTML(memory.description)}</div>` : '')}
           <div class="card-actions">
             <button class="move-btn">📌 Di chuyển</button>
             <button class="edit-btn">✏️ Sửa</button>
+            <button class="share-btn">🔗 Share</button>
             <button class="delete-btn">🗑 Xoá</button>
           </div>
         </div>`;
@@ -304,6 +316,8 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
       if (openBtn) openBtn.onclick = () => setViewer(memory);
       (card.querySelector('.move-btn') as HTMLButtonElement).onclick = () => enableMove(String(memory.id));
       (card.querySelector('.edit-btn') as HTMLButtonElement).onclick = () => onEdit(memory);
+      const shareBtn = card.querySelector('.share-btn') as HTMLButtonElement | null;
+      if (shareBtn) shareBtn.onclick = () => shareMemory(memory);
       (card.querySelector('.delete-btn') as HTMLButtonElement).onclick = () => onDelete(memory.id);
 
       makeDraggable(card, String(memory.id));
@@ -373,25 +387,31 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
               <div className="empty-state"><span className="big-heart">💌</span><h2>Không tìm thấy kỷ niệm</h2><p>Thử đổi bộ lọc hoặc thêm khoảnh khắc mới nhé ♥</p></div>
             ) : (
               <div className="story-feed">
-                {visibleMemories.map((memory, index) => (
-                  <article key={memory.id} className={`story-memory-card ${index % 2 ? 'reverse' : ''}`} style={{ ['--story-depth' as string]: `${(index % 5) - 2}` }}>
+                {visibleMemories.map((memory, index) => {
+                  const locked = isCapsuleLocked(memory);
+                  return (
+                  <article key={memory.id} className={`story-memory-card ${index % 2 ? 'reverse' : ''} ${locked ? 'capsule-locked' : ''}`} style={{ ['--story-depth' as string]: `${(index % 5) - 2}` }}>
                     <button className="story-photo-panel" onClick={() => setViewer(memory)}>
-                      {memory.image ? <img src={memory.image} alt={memory.title} loading="lazy" /> : <span className="story-no-photo">♥</span>}
+                      {memory.image ? <img className={locked ? 'blurred-capsule' : ''} src={memory.image} alt={memory.title} loading="lazy" /> : <span className="story-no-photo">{locked ? '🔒' : '♥'}</span>}
+                      {locked && <span className="story-capsule-badge">🔒 {countdownTo(memory.capsule_unlock_at)}</span>}
                     </button>
                     <div className="story-copy-panel">
                       <span className="eyebrow">Chương {index + 1} · {new Date(memory.date).toLocaleDateString('vi-VN')}</span>
                       <h3>{memory.title}</h3>
-                      {memory.location && <p className="story-meta">📍 {memory.location}</p>}
+                      {(memory.place_name || memory.location) && <p className="story-meta">📍 {memory.place_name || memory.location}</p>}
                       {memory.music && <p className="story-meta">🎵 {memory.music}</p>}
-                      {memory.description && <p>{memory.description}</p>}
+                      {memory.weather_summary && <p className="story-meta">{memory.weather_icon || '🌦️'} {memory.weather_summary}{memory.weather_temp != null ? ` · ${memory.weather_temp}°C` : ''}</p>}
+                      {locked ? <p>🔒 Nội dung được khóa tới {new Date(memory.capsule_unlock_at || '').toLocaleDateString('vi-VN')}.</p> : (memory.description && <p>{memory.description}</p>)}
                       <div className="story-actions">
                         <button className="btn-search" onClick={() => toggleFavorite(memory.id)}>{favorites.includes(memory.id) ? '♥ Đã yêu thích' : '♡ Yêu thích'}</button>
                         <button className="btn-search" onClick={() => onEdit(memory)}>✏️ Sửa</button>
+                        <button className="btn-search" onClick={() => shareMemory(memory)}>🔗 Share</button>
                         <button className="btn-search danger" onClick={() => onDelete(memory.id)}>🗑 Xoá</button>
                       </div>
                     </div>
                   </article>
-                ))}
+                  );
+                })}
               </div>
             )
           )}
@@ -408,11 +428,14 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
             <button className="memory-lightbox-close" onClick={() => { setViewer(null); setSlideshow(false); }}>✕</button>
             <button className="memory-lightbox-nav prev" onClick={() => { setSlideshow(false); goViewer(-1); }}>‹</button>
             <button className="memory-lightbox-nav next" onClick={() => { setSlideshow(false); goViewer(1); }}>›</button>
-            {viewer.image && <img src={viewer.image} alt={viewer.title} />}
+            {viewer.image && <img className={isCapsuleLocked(viewer) ? 'blurred-capsule' : ''} src={viewer.image} alt={viewer.title} />}
+            {isCapsuleLocked(viewer) && <div className="capsule-lightbox-lock"><b>🔒 Time capsule</b><span>{countdownTo(viewer.capsule_unlock_at)}</span></div>}
             <div className="memory-lightbox-body">
               <span className="eyebrow">{new Date(viewer.date).toLocaleDateString('vi-VN')}</span>
               <h3>{viewer.title}</h3>
-              {viewer.description && <p>{viewer.description}</p>}
+              {(viewer.place_name || viewer.location) && <p>📍 {viewer.place_name || viewer.location}</p>}
+              {viewer.weather_summary && <p>{viewer.weather_icon || '🌦️'} {viewer.weather_summary}{viewer.weather_temp != null ? ` · ${viewer.weather_temp}°C` : ''}</p>}
+              {isCapsuleLocked(viewer) ? <p>Memory này đang được khóa tới ngày {new Date(viewer.capsule_unlock_at || '').toLocaleDateString('vi-VN')}.</p> : (viewer.description && <p>{viewer.description}</p>)}
               <div className="lightbox-actions">
                 <button className="btn-search" onClick={() => setSlideshow(v => !v)}>{slideshow ? '⏸ Dừng trình chiếu' : '▶ Trình chiếu'}</button>
                 <button className="btn-search" onClick={() => toggleFavorite(viewer.id)}>{favorites.includes(viewer.id) ? '♥ Bỏ yêu thích' : '♡ Lưu yêu thích'}</button>

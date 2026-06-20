@@ -16,6 +16,11 @@ import { StatsTab } from './components/StatsTab';
 import { MoodTab } from './components/MoodTab';
 import { MusicTab } from './components/MusicTab';
 import { CalendarTab } from './components/CalendarTab';
+import { DiaryTab } from './components/DiaryTab';
+import { BucketListTab } from './components/BucketListTab';
+import { GoodNightTab } from './components/GoodNightTab';
+import { CollageTab } from './components/CollageTab';
+import { RandomMemoryFlip } from './components/RandomMemoryFlip';
 import { GlobalSearch } from './components/GlobalSearch';
 import { OnThisDayBanner } from './components/OnThisDayBanner';
 import { AdminGate } from './components/AdminGate';
@@ -24,9 +29,11 @@ import { VideoFormModal } from './components/VideoFormModal';
 import { VideoPlayerModal } from './components/VideoPlayerModal';
 import { useSocket } from './hooks/useSocket';
 import { useDynamicBackground } from './hooks/useDynamicBackground';
+import { useReminderNotifications } from './hooks/useReminderNotifications';
 import { applySiteStyleConfig } from './utils/siteStyle';
 import type { Memory, Video, Tab } from './types';
 import { sweetConfirm } from './components/SweetAlert';
+import { isCapsuleLocked, countdownTo } from './utils/memoryFeatures';
 import './styles/global.css';
 
 const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -50,6 +57,7 @@ export default function App() {
   const [memoryViewer, setMemoryViewer] = useState<Memory | null>(null);
 
   useDynamicBackground();
+  useReminderNotifications();
 
   useEffect(() => {
     const applyFromServer = async () => {
@@ -134,6 +142,7 @@ export default function App() {
       {!introDone && <CinematicIntro onDone={() => setIntroDone(true)} />}
       <div className={`app-root ${introDone ? 'app-visible' : 'app-hidden'}`}>
         <Header memoryCount={memories.length} videoCount={videos.length} />
+        <RandomMemoryFlip memories={memories} onOpenMemory={setMemoryViewer} />
         <TabDock tab={tab} onTabChange={handleTabChange} />
         <OnThisDayBanner memories={memories} onOpenMemory={setMemoryViewer} />
 
@@ -186,6 +195,14 @@ export default function App() {
           <CalendarTab memories={memories} onOpenMemory={setMemoryViewer} />
         )}
 
+        {tab === 'diary' && <DiaryTab />}
+
+        {tab === 'bucket' && <BucketListTab onRefreshMemories={loadMemories} />}
+
+        {tab === 'night' && <GoodNightTab />}
+
+        {tab === 'collage' && <CollageTab memories={memories} />}
+
         {tab === 'mood' && <MoodTab />}
 
         {tab === 'music' && (
@@ -228,14 +245,16 @@ export default function App() {
           <div className="memory-lightbox" onClick={() => setMemoryViewer(null)}>
             <div className="memory-lightbox-card" onClick={e => e.stopPropagation()}>
               <button className="memory-lightbox-close" onClick={() => setMemoryViewer(null)}>✕</button>
-              {memoryViewer.image && <img src={memoryViewer.image} alt={memoryViewer.title} />}
+              {memoryViewer.image && <img className={isCapsuleLocked(memoryViewer) ? 'blurred-capsule' : ''} src={memoryViewer.image} alt={memoryViewer.title} />}
+              {isCapsuleLocked(memoryViewer) && <div className="capsule-lightbox-lock"><b>🔒 Time capsule</b><span>{countdownTo(memoryViewer.capsule_unlock_at)}</span></div>}
               <div className="memory-lightbox-body">
                 <span className="eyebrow">{new Date(memoryViewer.date).toLocaleDateString('vi-VN')}</span>
                 <h3>{memoryViewer.title}</h3>
                 {memoryViewer.mood && <p>{memoryViewer.mood} Mood hôm đó</p>}
-                {memoryViewer.location && <p>📍 {memoryViewer.location}</p>}
+                {(memoryViewer.place_name || memoryViewer.location) && <p>📍 {memoryViewer.place_name || memoryViewer.location}</p>}
                 {memoryViewer.music && <p>🎵 {memoryViewer.music}</p>}
-                {memoryViewer.description && <p>{memoryViewer.description}</p>}
+                {memoryViewer.weather_summary && <p>{memoryViewer.weather_icon || '🌦️'} {memoryViewer.weather_summary}{memoryViewer.weather_temp != null ? ` · ${memoryViewer.weather_temp}°C` : ''}</p>}
+                {isCapsuleLocked(memoryViewer) ? <p>Memory này đang khóa tới {new Date(memoryViewer.capsule_unlock_at || '').toLocaleDateString('vi-VN')}.</p> : (memoryViewer.description && <p>{memoryViewer.description}</p>)}
                 <button className="btn-add" onClick={() => { setMemoryViewer(null); setMemoryModal({ open: true, editing: memoryViewer }); }}>✏️ Chỉnh sửa</button>
               </div>
             </div>

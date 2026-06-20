@@ -34,7 +34,13 @@ export function StatsTab({ memories, videos, onOpenMemory }: Props) {
     const bestPlace = Array.from(byLocation.entries()).sort((a, b) => b[1] - a[1])[0];
     const first = [...memories].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
     const withImage = memories.filter(m => m.image).length;
-    return { bestMonth, bestPlace, first, withImage };
+    const weatherMemories = memories.filter(m => m.weather_summary);
+    const sunny = weatherMemories.filter(m => /quang|mây|nắng|ít mây/i.test(m.weather_summary || '')).length;
+    const sunnyPct = weatherMemories.length ? Math.round((sunny / weatherMemories.length) * 100) : 0;
+    const byWeather = new Map<string, number>();
+    weatherMemories.forEach(m => byWeather.set(`${m.weather_icon || '🌦️'} ${m.weather_summary}`, (byWeather.get(`${m.weather_icon || '🌦️'} ${m.weather_summary}`) || 0) + 1));
+    const topWeather = Array.from(byWeather.entries()).sort((a, b) => b[1] - a[1])[0];
+    return { bestMonth, bestPlace, first, withImage, weatherMemories, sunnyPct, topWeather };
   }, [memories]);
 
   const monthlyBars = useMemo(() => {
@@ -72,9 +78,11 @@ export function StatsTab({ memories, videos, onOpenMemory }: Props) {
         <div className="stat-tile"><b>{memories.length}</b><span>kỷ niệm</span></div>
         <div className="stat-tile"><b>{stats.withImage}</b><span>ảnh đang hiển thị</span></div>
         <div className="stat-tile"><b>{videos.length}</b><span>video</span></div>
+        <div className="stat-tile"><b>{stats.sunnyPct}%</b><span>kỷ niệm khi trời đẹp</span></div>
         <div className="stat-tile"><b>{stats.bestMonth?.[0] || '—'}</b><span>tháng nhiều kỷ niệm nhất</span></div>
         <div className="stat-tile wide"><b>{stats.bestPlace?.[0] || 'Chưa có'}</b><span>địa điểm xuất hiện nhiều nhất</span></div>
         <div className="stat-tile wide"><b>{stats.first ? new Date(stats.first.date).toLocaleDateString('vi-VN') : '—'}</b><span>kỷ niệm đầu tiên</span></div>
+        <div className="stat-tile wide"><b>{stats.topWeather?.[0] || 'Chưa có'}</b><span>thời tiết hay gặp nhất</span></div>
       </div>
 
       <section className="stats-chart-panel">

@@ -53,6 +53,18 @@ const pool = new Pool({
     await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS location VARCHAR(255) DEFAULT NULL`).catch(() => {});
     await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS music TEXT DEFAULT NULL`).catch(() => {});
     await pool.query(`ALTER TABLE memories ALTER COLUMN music TYPE TEXT`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS music_url TEXT DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS music_kind VARCHAR(30) DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS music_file_id INTEGER DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS latitude FLOAT DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS longitude FLOAT DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS place_name TEXT DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS is_capsule BOOLEAN DEFAULT FALSE`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS capsule_unlock_at DATE DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS weather_summary TEXT DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS weather_icon VARCHAR(20) DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS weather_temp FLOAT DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS share_token VARCHAR(80) UNIQUE DEFAULT NULL`).catch(() => {});
     await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS pos_x FLOAT DEFAULT NULL`).catch(() => {});
     await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS pos_y FLOAT DEFAULT NULL`).catch(() => {});
     await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS pos_rotate FLOAT DEFAULT NULL`).catch(() => {});
@@ -99,6 +111,70 @@ const pool = new Pool({
         filename    VARCHAR(255),
         mime_type   VARCHAR(100),
         data_url    TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS music_files (
+        id          SERIAL PRIMARY KEY,
+        filename    VARCHAR(255),
+        mime_type   VARCHAR(100),
+        data_url    TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS anniversary_events (
+        id          SERIAL PRIMARY KEY,
+        title       VARCHAR(255) NOT NULL,
+        event_date  DATE NOT NULL,
+        description TEXT,
+        memory_id   INTEGER DEFAULT NULL,
+        remind      BOOLEAN DEFAULT TRUE,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS diary_entries (
+        id          SERIAL PRIMARY KEY,
+        entry_date  DATE UNIQUE NOT NULL,
+        mood        VARCHAR(50) DEFAULT NULL,
+        content     TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bucket_items (
+        id          SERIAL PRIMARY KEY,
+        title       VARCHAR(255) NOT NULL,
+        notes       TEXT,
+        done        BOOLEAN DEFAULT FALSE,
+        done_at     DATE DEFAULT NULL,
+        image       TEXT DEFAULT NULL,
+        memory_id   INTEGER DEFAULT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS goodnight_messages (
+        id          SERIAL PRIMARY KEY,
+        message     TEXT NOT NULL,
+        sent_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notification_subscriptions (
+        id          SERIAL PRIMARY KEY,
+        endpoint    TEXT UNIQUE NOT NULL,
+        payload     JSONB,
         created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -196,6 +272,16 @@ const uploadGiftImage  = multer({
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png|webp|gif|svg\+xml/;
     cb(null, allowed.test(file.mimetype));
+  },
+});
+
+
+const uploadMusic = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 18 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /audio\/(mpeg|mp3|wav|ogg|m4a|aac|x-m4a)|application\/octet-stream/.test(file.mimetype || '');
+    cb(null, ok || /\.(mp3|wav|ogg|m4a|aac)$/i.test(file.originalname || ''));
   },
 });
 
@@ -461,6 +547,266 @@ app.patch("/api/admin/memories/:id/image", async (req, res) => {
 });
 
 
+
+// ─── Wow feature helpers ─────────────────────────────────────────────────────
+function boolish(value) {
+  return value === true || value === "true" || value === "1" || value === "on";
+}
+
+function randomToken(size = 24) {
+  const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let out = "";
+  for (let i = 0; i < size; i += 1) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return out;
+}
+
+function normalizeMusicKind(kind, url) {
+  const value = String(kind || "").trim().toLowerCase();
+  if (value) return value;
+  if (/youtube\.com|youtu\.be/i.test(String(url || ""))) return "youtube";
+  if (String(url || "").includes("/api/music-files/")) return "mp3";
+  return url ? "link" : null;
+}
+
+function weatherCodeToText(code) {
+  const map = {
+    0: ["☀️", "Trời quang"], 1: ["🌤️", "Ít mây"], 2: ["⛅", "Có mây"], 3: ["☁️", "Nhiều mây"],
+    45: ["🌫️", "Sương mù"], 48: ["🌫️", "Sương mù đóng băng"],
+    51: ["🌦️", "Mưa phùn nhẹ"], 53: ["🌦️", "Mưa phùn"], 55: ["🌧️", "Mưa phùn dày"],
+    61: ["🌧️", "Mưa nhẹ"], 63: ["🌧️", "Mưa vừa"], 65: ["⛈️", "Mưa lớn"],
+    71: ["🌨️", "Tuyết nhẹ"], 73: ["🌨️", "Tuyết"], 75: ["❄️", "Tuyết dày"],
+    80: ["🌦️", "Mưa rào nhẹ"], 81: ["🌧️", "Mưa rào"], 82: ["⛈️", "Mưa rào mạnh"],
+    95: ["⛈️", "Dông"], 96: ["⛈️", "Dông kèm mưa đá"], 99: ["⛈️", "Dông mạnh"],
+  };
+  return map[Number(code)] || ["🌈", "Không rõ thời tiết"];
+}
+
+async function fetchMemoryWeather({ latitude, longitude, date }) {
+  const lat = Number(latitude);
+  const lon = Number(longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || !date) return null;
+  const day = String(date).slice(0, 10);
+  try {
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&start_date=${encodeURIComponent(day)}&end_date=${encodeURIComponent(day)}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
+    const response = await fetch(url, { headers: { "accept": "application/json" } });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const code = data?.daily?.weather_code?.[0];
+    const [icon, text] = weatherCodeToText(code);
+    const max = data?.daily?.temperature_2m_max?.[0];
+    const min = data?.daily?.temperature_2m_min?.[0];
+    const temp = Number.isFinite(Number(max)) && Number.isFinite(Number(min)) ? Math.round((Number(max) + Number(min)) / 2) : null;
+    return { weather_icon: icon, weather_summary: text, weather_temp: temp };
+  } catch {
+    return null;
+  }
+}
+
+app.get("/api/geocode", async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim();
+    if (!q) return res.json([]);
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&addressdetails=1&q=${encodeURIComponent(q)}`;
+    const response = await fetch(url, { headers: { "User-Agent": "OurLoveDiary/1.0" } });
+    const data = await response.json();
+    res.json((Array.isArray(data) ? data : []).map(item => ({
+      label: item.display_name,
+      lat: Number(item.lat),
+      lon: Number(item.lon),
+      type: item.type,
+      importance: item.importance,
+    })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/music-upload", uploadMusic.single("music"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Chưa có file MP3/audio" });
+  try {
+    const mime = req.file.mimetype || "audio/mpeg";
+    const base64 = req.file.buffer.toString("base64");
+    const dataUrl = `data:${mime};base64,${base64}`;
+    const r = await pool.query(
+      "INSERT INTO music_files (filename,mime_type,data_url) VALUES ($1,$2,$3) RETURNING id, filename",
+      [req.file.originalname || "memory-song.mp3", mime, dataUrl]
+    );
+    res.json({ success: true, id: r.rows[0].id, url: `/api/music-files/${r.rows[0].id}/data`, filename: r.rows[0].filename });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/music-files/:id/data", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).send("Bad music id");
+    const r = await pool.query("SELECT mime_type,data_url FROM music_files WHERE id=$1", [id]);
+    if (!r.rowCount) return res.status(404).send("Not found");
+    const dataUrl = r.rows[0].data_url || "";
+    const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
+    if (!match) return res.status(500).send("Invalid stored audio");
+    res.setHeader("Content-Type", r.rows[0].mime_type || match[1] || "audio/mpeg");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.send(Buffer.from(match[2], "base64"));
+  } catch (err) { res.status(500).send(err.message); }
+});
+
+// ─── Calendar anniversary events ─────────────────────────────────────────────
+app.get("/api/anniversary-events", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT * FROM anniversary_events ORDER BY event_date ASC, id DESC");
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/anniversary-events", async (req, res) => {
+  try {
+    const { title, event_date, description, memory_id, remind } = req.body;
+    if (!title || !event_date) return res.status(400).json({ error: "Thiếu title hoặc ngày" });
+    const r = await pool.query(
+      "INSERT INTO anniversary_events (title,event_date,description,memory_id,remind) VALUES ($1,$2,$3,$4,$5) RETURNING *",
+      [title, event_date, description || null, memory_id || null, remind !== false]
+    );
+    io.emit("anniversaryEventsUpdated");
+    res.json({ success: true, event: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete("/api/anniversary-events/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM anniversary_events WHERE id=$1", [req.params.id]);
+    io.emit("anniversaryEventsUpdated");
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── AI love letter with Anthropic ───────────────────────────────────────────
+app.post("/api/ai-love-letter", async (req, res) => {
+  try {
+    const { keywords = "", tone = "ngọt ngào", name = "em" } = req.body || {};
+    const prompt = `Viết một bức thư tình tiếng Việt thật lãng mạn, chân thành, không sến quá. Người nhận là ${name}. Từ khóa/kỷ niệm cần đưa vào: ${keywords}. Giọng văn: ${tone}. Độ dài khoảng 250-450 chữ, có mở đầu và kết thúc ấm áp.`;
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.json({
+        success: true,
+        fallback: true,
+        letter: `Gửi ${name || "em"},\n\nAnh viết những dòng này từ vài mảnh ký ức nhỏ: ${keywords || "những ngày mình ở bên nhau"}. Không biết từ bao giờ, những điều bình thường như một buổi sáng có cà phê, một cơn mưa đi ngang, hay một đoạn đường quen lại trở thành nơi anh cất giữ nỗi nhớ.\n\nAnh thích cách em làm mọi thứ trở nên dịu hơn. Ở cạnh em, anh thấy thời gian không chỉ trôi qua, mà còn biết để lại những dấu yêu. Nếu có thể, anh muốn được cùng em gom thêm thật nhiều ngày như thế: có tiếng cười, có những lần giận hờn rồi lại thương nhau hơn, có cả những khoảnh khắc chỉ cần im lặng bên nhau cũng đủ bình yên.\n\nCảm ơn em vì đã xuất hiện trong cuộc đời anh. Mong rằng sau này, khi đọc lại bức thư này, mình vẫn sẽ mỉm cười vì đã từng và vẫn đang yêu nhau nhiều đến vậy.\n\nThương em thật nhiều.`
+      });
+    }
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": process.env.ANTHROPIC_VERSION || "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022",
+        max_tokens: 1200,
+        temperature: 0.85,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) return res.status(response.status).json({ error: data?.error?.message || "Anthropic API error" });
+    const letter = (data?.content || []).map(part => part.text || "").join("\n").trim();
+    res.json({ success: true, letter });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Public memory sharing ───────────────────────────────────────────────────
+app.post("/memories/:id/share", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await pool.query("SELECT share_token FROM memories WHERE id=$1", [id]);
+    if (!existing.rowCount) return res.status(404).json({ error: "Không tìm thấy kỷ niệm" });
+    let token = existing.rows[0].share_token;
+    if (!token) {
+      token = randomToken(28);
+      await pool.query("UPDATE memories SET share_token=$1 WHERE id=$2", [token, id]);
+    }
+    res.json({ success: true, token, url: `/share/${token}` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/share/:token", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT id,title,date,description,image,mood,location,music,music_url,music_kind,weather_summary,weather_icon,weather_temp FROM memories WHERE share_token=$1", [req.params.token]);
+    if (!r.rowCount) return res.status(404).json({ error: "Not found" });
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/share/:token", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT title,date,description,image,location,music,weather_summary,weather_icon,weather_temp FROM memories WHERE share_token=$1", [req.params.token]);
+    if (!r.rowCount) return res.status(404).send("Memory not found");
+    const m = r.rows[0];
+    const safe = (v) => String(v || "").replace(/[&<>\"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch]));
+    res.send(`<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safe(m.title)} · Our Love Diary</title><style>body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:linear-gradient(135deg,#fff5ee,#ffd6de,#d9ccff);display:grid;place-items:center;color:#3d1a26}.card{width:min(720px,92vw);background:rgba(255,255,255,.82);border:1px solid rgba(255,255,255,.7);border-radius:32px;box-shadow:0 25px 80px rgba(90,38,64,.22);overflow:hidden}.photo{width:100%;max-height:62vh;object-fit:cover;display:block}.body{padding:28px}.eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:.72rem;opacity:.65}h1{font-family:Georgia,serif;font-size:clamp(2rem,6vw,4rem);margin:.25rem 0 1rem}.watermark{margin-top:20px;font-weight:800;opacity:.55}</style></head><body><main class="card">${m.image ? `<img class="photo" src="${safe(m.image)}" alt="${safe(m.title)}">` : ""}<section class="body"><span class="eyebrow">${new Date(m.date).toLocaleDateString("vi-VN")}</span><h1>${safe(m.title)}</h1>${m.location ? `<p>📍 ${safe(m.location)}</p>` : ""}${m.music ? `<p>🎵 ${safe(m.music)}</p>` : ""}${m.weather_summary ? `<p>${safe(m.weather_icon)} ${safe(m.weather_summary)}${m.weather_temp != null ? ` · ${safe(m.weather_temp)}°C` : ""}</p>` : ""}<p>${safe(m.description)}</p><div class="watermark">Our Love Diary</div></section></main></body></html>`);
+  } catch (err) { res.status(500).send(err.message); }
+});
+
+// ─── Diary / Bucket / Good night ─────────────────────────────────────────────
+app.get("/api/diary-entries", async (req, res) => {
+  try { const r = await pool.query("SELECT * FROM diary_entries ORDER BY entry_date DESC"); res.json(r.rows); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.post("/api/diary-entries", async (req, res) => {
+  try {
+    const { entry_date, mood, content } = req.body;
+    if (!entry_date || !content) return res.status(400).json({ error: "Thiếu ngày hoặc nội dung" });
+    const r = await pool.query(`INSERT INTO diary_entries (entry_date,mood,content,updated_at) VALUES ($1,$2,$3,NOW()) ON CONFLICT (entry_date) DO UPDATE SET mood=$2,content=$3,updated_at=NOW() RETURNING *`, [entry_date, mood || null, content]);
+    res.json({ success: true, entry: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.delete("/api/diary-entries/:id", async (req, res) => { try { await pool.query("DELETE FROM diary_entries WHERE id=$1", [req.params.id]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
+
+app.get("/api/bucket-items", async (req, res) => { try { const r = await pool.query("SELECT * FROM bucket_items ORDER BY done ASC, created_at DESC"); res.json(r.rows); } catch (err) { res.status(500).json({ error: err.message }); } });
+app.post("/api/bucket-items", async (req, res) => {
+  try {
+    const { title, notes } = req.body;
+    if (!title) return res.status(400).json({ error: "Thiếu title" });
+    const r = await pool.query("INSERT INTO bucket_items (title,notes) VALUES ($1,$2) RETURNING *", [title, notes || null]);
+    res.json({ success: true, item: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.patch("/api/bucket-items/:id", async (req, res) => {
+  try {
+    const { done, done_at, image, create_memory } = req.body;
+    const r = await pool.query("UPDATE bucket_items SET done=$1,done_at=$2,image=$3 WHERE id=$4 RETURNING *", [boolish(done), done_at || (boolish(done) ? new Date().toISOString().slice(0,10) : null), image || null, req.params.id]);
+    if (!r.rowCount) return res.status(404).json({ error: "Not found" });
+    let memory = null;
+    if (boolish(done) && boolish(create_memory) && !r.rows[0].memory_id) {
+      const mem = await pool.query("INSERT INTO memories (title,date,description,image,mood) VALUES ($1,$2,$3,$4,$5) RETURNING *", [`Hoàn thành bucket list: ${r.rows[0].title}`, r.rows[0].done_at || new Date().toISOString().slice(0,10), r.rows[0].notes || "Một điều hai đứa đã cùng nhau hoàn thành.", image || null, "🎯"]);
+      memory = mem.rows[0];
+      await pool.query("UPDATE bucket_items SET memory_id=$1 WHERE id=$2", [memory.id, req.params.id]);
+      io.emit("memoryAdded", memory);
+    }
+    res.json({ success: true, item: r.rows[0], memory });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.delete("/api/bucket-items/:id", async (req, res) => { try { await pool.query("DELETE FROM bucket_items WHERE id=$1", [req.params.id]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
+
+app.get("/api/goodnight-messages", async (req, res) => { try { const r = await pool.query("SELECT * FROM goodnight_messages ORDER BY sent_at DESC"); res.json(r.rows); } catch (err) { res.status(500).json({ error: err.message }); } });
+app.post("/api/goodnight-messages", async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Thiếu tin nhắn" });
+    const r = await pool.query("INSERT INTO goodnight_messages (message) VALUES ($1) RETURNING *", [message]);
+    res.json({ success: true, item: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.delete("/api/goodnight-messages/:id", async (req, res) => { try { await pool.query("DELETE FROM goodnight_messages WHERE id=$1", [req.params.id]); res.json({ success: true }); } catch (err) { res.status(500).json({ error: err.message }); } });
+
+app.get("/api/reminders/today", async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(5, 10);
+    const [events, memories, letters] = await Promise.all([
+      pool.query("SELECT 'event' AS kind,id,title,event_date AS date,description FROM anniversary_events WHERE remind=true AND to_char(event_date,'MM-DD')=$1", [today]),
+      pool.query("SELECT 'memory' AS kind,id,title,date,description FROM memories WHERE to_char(date,'MM-DD')=$1", [today]),
+      pool.query("SELECT 'letter' AS kind,id,title,unlock_at AS date,preview FROM (SELECT id,title,unlock_at,LEFT(message,120) AS preview FROM love_letters) x WHERE unlock_at::date=CURRENT_DATE"),
+    ]);
+    res.json([...events.rows, ...memories.rows, ...letters.rows]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── Future Love Letters ─────────────────────────────────────────────────────
 function letterIsUnlocked(unlockAt) {
   const today = new Date();
@@ -509,18 +855,26 @@ app.delete("/api/letters/:id", async (req, res) => {
 
 app.get("/api/admin/backup", async (req, res) => {
   try {
-    const [memories, videos, letters, gift] = await Promise.all([
+    const [memories, videos, letters, gift, anniversaryEvents, diaryEntries, bucketItems, goodnightMessages] = await Promise.all([
       pool.query("SELECT * FROM memories ORDER BY date DESC, id DESC"),
       pool.query("SELECT * FROM videos ORDER BY date DESC, id DESC"),
       pool.query("SELECT * FROM love_letters ORDER BY unlock_at ASC, id DESC"),
-      pool.query("SELECT config_key, config_value FROM gift_config ORDER BY config_key ASC")
+      pool.query("SELECT config_key, config_value FROM gift_config ORDER BY config_key ASC"),
+      pool.query("SELECT * FROM anniversary_events ORDER BY event_date ASC, id DESC"),
+      pool.query("SELECT * FROM diary_entries ORDER BY entry_date DESC"),
+      pool.query("SELECT * FROM bucket_items ORDER BY done ASC, created_at DESC"),
+      pool.query("SELECT * FROM goodnight_messages ORDER BY sent_at DESC")
     ]);
     res.json({
       exported_at: new Date().toISOString(),
       memories: memories.rows,
       videos: videos.rows,
       letters: letters.rows,
-      gift_config: gift.rows
+      gift_config: gift.rows,
+      anniversary_events: anniversaryEvents.rows,
+      diary_entries: diaryEntries.rows,
+      bucket_items: bucketItems.rows,
+      goodnight_messages: goodnightMessages.rows
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -553,7 +907,7 @@ app.get("/memories", async (req, res) => {
 app.post("/memories", (req, res) => {
   uploadImage.single("image")(req, res, async (uploadErr) => {
     if (uploadErr) { console.error("[UPLOAD ERROR]", uploadErr.message); req.file = null; }
-    const { title, date, description, mood, location, music } = req.body;
+    const { title, date, description, mood, location, music, music_url, music_kind, music_file_id, latitude, longitude, place_name, is_capsule, capsule_unlock_at } = req.body;
     if (!title || !date) return res.status(400).json({ error: "Thiếu title hoặc date" });
 
     let image = null;
@@ -562,10 +916,15 @@ app.post("/memories", (req, res) => {
       image = raw.startsWith("http") ? raw : cloudinary.url(raw, { secure: true });
     }
 
+    const lat = latitude === "" || latitude == null ? null : Number(latitude);
+    const lon = longitude === "" || longitude == null ? null : Number(longitude);
+    const weather = await fetchMemoryWeather({ latitude: lat, longitude: lon, date });
+
     try {
       const r = await pool.query(
-        "INSERT INTO memories (title,date,description,image,mood,location,music) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
-        [title, date, description, image, mood || null, location || null, music || null]
+        `INSERT INTO memories (title,date,description,image,mood,location,music,music_url,music_kind,music_file_id,latitude,longitude,place_name,is_capsule,capsule_unlock_at,weather_summary,weather_icon,weather_temp)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+        [title, date, description, image, mood || null, location || null, music || null, music_url || null, normalizeMusicKind(music_kind, music_url), music_file_id || null, Number.isFinite(lat) ? lat : null, Number.isFinite(lon) ? lon : null, place_name || location || null, boolish(is_capsule), capsule_unlock_at || null, weather?.weather_summary || null, weather?.weather_icon || null, weather?.weather_temp ?? null]
       );
       const saved = r.rows[0];
       io.emit("memoryAdded", saved);
@@ -577,7 +936,7 @@ app.post("/memories", (req, res) => {
 app.put("/memories/:id", (req, res) => {
   uploadImage.single("image")(req, res, async (uploadErr) => {
     if (uploadErr) { console.error("[UPLOAD ERROR]", uploadErr.message); req.file = null; }
-    const { title, date, description, mood, location, music } = req.body;
+    const { title, date, description, mood, location, music, music_url, music_kind, music_file_id, latitude, longitude, place_name, is_capsule, capsule_unlock_at } = req.body;
     const { id } = req.params;
 
     let imageUrl = null;
@@ -586,19 +945,23 @@ app.put("/memories/:id", (req, res) => {
       imageUrl = raw.startsWith("http") ? raw : cloudinary.url(raw, { secure: true });
     }
 
+    const lat = latitude === "" || latitude == null ? null : Number(latitude);
+    const lon = longitude === "" || longitude == null ? null : Number(longitude);
+    const weather = await fetchMemoryWeather({ latitude: lat, longitude: lon, date });
+
     try {
-      if (imageUrl) {
-        await pool.query(
-          "UPDATE memories SET title=$1,date=$2,description=$3,image=$4,mood=$5,location=$6,music=$7 WHERE id=$8",
-          [title, date, description, imageUrl, mood || null, location || null, music || null, id]
-        );
-      } else {
-        const r = await pool.query("SELECT image FROM memories WHERE id=$1", [id]);
-        imageUrl = r.rows[0]?.image || null;
-        await pool.query("UPDATE memories SET title=$1,date=$2,description=$3,mood=$4,location=$5,music=$6 WHERE id=$7", [title, date, description, mood || null, location || null, music || null, id]);
+      if (!imageUrl) {
+        const old = await pool.query("SELECT image, weather_summary, weather_icon, weather_temp FROM memories WHERE id=$1", [id]);
+        imageUrl = old.rows[0]?.image || null;
       }
-      io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: imageUrl, mood: mood || null, location: location || null, music: music || null });
-      res.json({ success: true });
+      const r = await pool.query(
+        `UPDATE memories SET title=$1,date=$2,description=$3,image=$4,mood=$5,location=$6,music=$7,music_url=$8,music_kind=$9,music_file_id=$10,latitude=$11,longitude=$12,place_name=$13,is_capsule=$14,capsule_unlock_at=$15,weather_summary=COALESCE($16,weather_summary),weather_icon=COALESCE($17,weather_icon),weather_temp=COALESCE($18,weather_temp)
+         WHERE id=$19 RETURNING *`,
+        [title, date, description, imageUrl, mood || null, location || null, music || null, music_url || null, normalizeMusicKind(music_kind, music_url), music_file_id || null, Number.isFinite(lat) ? lat : null, Number.isFinite(lon) ? lon : null, place_name || location || null, boolish(is_capsule), capsule_unlock_at || null, weather?.weather_summary || null, weather?.weather_icon || null, weather?.weather_temp ?? null, id]
+      );
+      const saved = r.rows[0];
+      io.emit("memoryUpdated", saved);
+      res.json({ success: true, memory: saved });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 });

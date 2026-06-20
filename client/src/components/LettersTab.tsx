@@ -33,6 +33,10 @@ export function LettersTab() {
   const [showForm, setShowForm] = useState(false);
   const [open, setOpen] = useState<Letter | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const [aiKeywords, setAiKeywords] = useState('mưa, nhớ em, cà phê sáng');
+  const [aiTone, setAiTone] = useState('ngọt ngào');
+  const [aiName, setAiName] = useState('em');
+  const [aiLoading, setAiLoading] = useState(false);
 
   const load = async () => {
     const res = await fetch(`${BASE_URL}/api/letters`);
@@ -46,6 +50,24 @@ export function LettersTab() {
   }, []);
 
   const nextLetter = useMemo(() => letters.filter(l => !l.unlocked).sort((a, b) => new Date(a.unlock_at).getTime() - new Date(b.unlock_at).getTime())[0], [letters]);
+
+  const generateAiLetter = async () => {
+    if (!aiKeywords.trim()) return toast('Nhập vài từ khóa cho AI đã nha 🤖', 'error');
+    setAiLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/ai-love-letter`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords: aiKeywords, tone: aiTone, name: aiName }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.letter) throw new Error(data.error || 'AI error');
+      setForm(f => ({ ...f, title: f.title || `Thư gửi ${aiName || 'em'}`, message: data.letter }));
+      setShowForm(true);
+      toast(data.fallback ? 'Chưa có ANTHROPIC_API_KEY nên dùng bản fallback lãng mạn' : 'AI đã viết xong thư tình 💌', 'success');
+    } catch {
+      toast('AI chưa viết được thư. Kiểm tra ANTHROPIC_API_KEY nha.', 'error');
+    } finally { setAiLoading(false); }
+  };
 
   const save = async () => {
     if (!form.title || !form.unlock_at || !form.message) return toast('Nhập đủ tiêu đề, ngày mở và nội dung nha', 'error');
@@ -71,6 +93,25 @@ export function LettersTab() {
         <h2>Hộp thư tương lai</h2>
         <p>Viết một bức thư, đặt ngày mở khóa, rồi để app giữ bí mật tới đúng ngày.</p>
         <button className="btn-add" onClick={() => setShowForm(v => !v)}>{showForm ? 'Đóng form' : '＋ Viết thư mới'}</button>
+      </section>
+
+      <section className="ai-letter-lab glass-panel">
+        <div>
+          <span className="eyebrow">AI love letter</span>
+          <h3>🤖 AI viết thư tình hộ</h3>
+          <p>Nhập vài từ khóa, app gọi Anthropic API để biến thành một bức thư hoàn chỉnh.</p>
+        </div>
+        <div className="ai-letter-grid">
+          <input value={aiKeywords} onChange={e => setAiKeywords(e.target.value)} placeholder="mưa, nhớ em, cà phê sáng..." />
+          <input value={aiName} onChange={e => setAiName(e.target.value)} placeholder="Tên người nhận" />
+          <select value={aiTone} onChange={e => setAiTone(e.target.value)}>
+            <option value="ngọt ngào">Ngọt ngào</option>
+            <option value="trưởng thành, sâu lắng">Trưởng thành, sâu lắng</option>
+            <option value="vui vẻ, đáng yêu">Vui vẻ, đáng yêu</option>
+            <option value="thơ mộng như phim">Thơ mộng như phim</option>
+          </select>
+          <button className="btn-add" onClick={generateAiLetter} disabled={aiLoading}>{aiLoading ? 'AI đang viết...' : '✨ Viết thư bằng AI'}</button>
+        </div>
       </section>
 
       {showForm && (
