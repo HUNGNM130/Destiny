@@ -1,12 +1,22 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ThemePicker } from './ThemePicker';
 
-const LOVE_START_DATE = new Date('2025-09-20');
-function getDaysInLove() {
-  return Math.floor((Date.now() - LOVE_START_DATE.getTime()) / 86400000);
+export interface SiteCopyConfig {
+  siteHeroEyebrow?: string;
+  siteHeroTitle?: string;
+  siteHeroSubtitle?: string;
+  siteGlobalNotice?: string;
+  loveStartDate?: string;
 }
 
-export function Header({ memoryCount = 0, videoCount = 0 }: { memoryCount?: number; videoCount?: number }) {
+const FALLBACK_LOVE_START_DATE = '2025-09-20';
+function getDaysInLove(startDate = FALLBACK_LOVE_START_DATE) {
+  const start = new Date(startDate || FALLBACK_LOVE_START_DATE);
+  const safeStart = Number.isNaN(start.getTime()) ? new Date(FALLBACK_LOVE_START_DATE) : start;
+  return Math.max(0, Math.floor((Date.now() - safeStart.getTime()) / 86400000));
+}
+
+export function Header({ memoryCount = 0, videoCount = 0, siteCopy = {} }: { memoryCount?: number; videoCount?: number; siteCopy?: SiteCopyConfig }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const circleRef    = useRef<HTMLDivElement>(null);
   const innerTextRef = useRef<HTMLDivElement>(null);
@@ -16,7 +26,11 @@ export function Header({ memoryCount = 0, videoCount = 0 }: { memoryCount?: numb
   const currentPos = useRef({ x: 0, y: 0 });
   const rafRef     = useRef<number>();
 
-  const days = getDaysInLove();
+  const days = getDaysInLove(siteCopy.loveStartDate);
+  const heroEyebrow = siteCopy.siteHeroEyebrow || 'Private memory system';
+  const heroTitle = siteCopy.siteHeroTitle || 'Our Love Diary';
+  const heroSubtitle = siteCopy.siteHeroSubtitle || 'Mỗi khoảnh khắc là mãi mãi ✦';
+  const globalNotice = (siteCopy.siteGlobalNotice || '').trim();
 
   useEffect(() => {
     const update = () => {
@@ -74,7 +88,9 @@ export function Header({ memoryCount = 0, videoCount = 0 }: { memoryCount?: numb
 
   return (
     <header>
-      <div className="header-top-row"><div className="header-badge">♥ &nbsp;{days} ngày bên nhau</div><ThemePicker /></div>
+      <div className="header-orb orb-one" />
+      <div className="header-orb orb-two" />
+      <div className="header-top-row"><div className="header-badge">♥ &nbsp;{heroEyebrow} · {days} ngày</div><ThemePicker /></div>
       <div className="header-hearts">· · ·</div>
 
       {/* MagneticText — title */}
@@ -86,7 +102,7 @@ export function Header({ memoryCount = 0, videoCount = 0 }: { memoryCount?: numb
         onMouseLeave={handleMouseLeave}
       >
         {/* Base text */}
-        <h1 className="mc-base-text">Our Love Diary</h1>
+        <h1 className="mc-base-text">{heroTitle}</h1>
 
         {/* Morphing circle with hover text */}
         <div
@@ -111,12 +127,25 @@ export function Header({ memoryCount = 0, videoCount = 0 }: { memoryCount?: numb
         </div>
       </div>
 
-      <p>Mỗi khoảnh khắc là mãi mãi ✦</p>
+      <p>{heroSubtitle}</p>
+
+      {globalNotice && (
+        <div className="hero-notice">
+          <span>✦</span>
+          <strong>{globalNotice}</strong>
+        </div>
+      )}
 
       <div className="hero-mini-dashboard">
         <div><strong>{memoryCount}</strong><span>ảnh kỷ niệm</span></div>
         <div><strong>{videoCount}</strong><span>video</span></div>
         <div><strong>{days}</strong><span>ngày yêu</span></div>
+      </div>
+
+      <div className="bits-feature-strip" aria-label="React Bits inspired visual highlights">
+        <span>Animated glass</span>
+        <span>Magnetic title</span>
+        <span>Live admin theme</span>
       </div>
     </header>
   );

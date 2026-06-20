@@ -8,6 +8,9 @@ export interface SiteStyleConfig {
   siteFontBody?: string;
   siteFontDisplay?: string;
   siteFontHand?: string;
+  enableSiteAurora?: string;
+  enableCardSpotlight?: string;
+  siteMotionIntensity?: string;
 }
 
 export const FONT_OPTIONS = [
@@ -31,6 +34,9 @@ export const SITE_STYLE_DEFAULTS: Required<SiteStyleConfig> = {
   siteFontBody: "'DM Sans', system-ui, sans-serif",
   siteFontDisplay: "'Playfair Display', Georgia, serif",
   siteFontHand: "'Caveat', cursive",
+  enableSiteAurora: 'true',
+  enableCardSpotlight: 'true',
+  siteMotionIntensity: '1',
 };
 
 function isColor(value?: string) {
@@ -65,6 +71,13 @@ export function applySiteStyleConfig(config: SiteStyleConfig = {}) {
   const root = document.documentElement;
   const body = document.body;
   root.dataset.adminStyle = 'true';
+  root.dataset.siteAurora = cfg.enableSiteAurora === 'false' ? 'off' : 'on';
+  root.dataset.cardSpotlight = cfg.enableCardSpotlight === 'false' ? 'off' : 'on';
+  const motion = Math.max(0, Math.min(2, Number(cfg.siteMotionIntensity || 1) || 1));
+  const safeMotion = Math.max(0.2, motion);
+  root.style.setProperty('--motion-scale', String(motion));
+  root.style.setProperty('--motion-duration-slow', `${(16 / safeMotion).toFixed(2)}s`);
+  root.style.setProperty('--motion-duration-fast', `${(10 / safeMotion).toFixed(2)}s`);
 
   const primary = isColor(cfg.sitePrimaryColor) ? cfg.sitePrimaryColor : SITE_STYLE_DEFAULTS.sitePrimaryColor;
   const accent = isColor(cfg.siteAccentColor) ? cfg.siteAccentColor : SITE_STYLE_DEFAULTS.siteAccentColor;

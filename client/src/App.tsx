@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { CinematicIntro } from './components/CinematicIntro';
-import { Header } from './components/Header';
+import { Header, type SiteCopyConfig } from './components/Header';
 import { TabDock } from './components/TabDock';
 import { ToastProviderWithGlobal } from './components/SweetAlert';
 import { PhotosTab } from './components/PhotosTab';
@@ -47,6 +47,13 @@ export default function App() {
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [siteCopy, setSiteCopy] = useState<SiteCopyConfig>({
+    siteHeroEyebrow: 'Private memory system',
+    siteHeroTitle: 'Our Love Diary',
+    siteHeroSubtitle: 'Mỗi khoảnh khắc là mãi mãi ✦',
+    siteGlobalNotice: '',
+    loveStartDate: '2025-09-20',
+  });
   const [loadingMemories, setLoadingMemories] = useState(false);
   const [loadingVideos, setLoadingVideos] = useState(false);
 
@@ -65,12 +72,26 @@ export default function App() {
         const res = await fetch(`${BASE_URL}/api/gift-config`);
         const cfg = await res.json();
         applySiteStyleConfig(cfg);
+        setSiteCopy({
+          siteHeroEyebrow: cfg.siteHeroEyebrow || 'Private memory system',
+          siteHeroTitle: cfg.siteHeroTitle || 'Our Love Diary',
+          siteHeroSubtitle: cfg.siteHeroSubtitle || 'Mỗi khoảnh khắc là mãi mãi ✦',
+          siteGlobalNotice: cfg.siteGlobalNotice || '',
+          loveStartDate: cfg.loveStartDate || '2025-09-20',
+        });
       } catch { /* keep default theme */ }
     };
     applyFromServer();
     const onStyleUpdated = (event: Event) => {
       const detail = (event as CustomEvent).detail || {};
       applySiteStyleConfig(detail);
+      setSiteCopy(prev => ({ ...prev,
+        siteHeroEyebrow: detail.siteHeroEyebrow ?? prev.siteHeroEyebrow,
+        siteHeroTitle: detail.siteHeroTitle ?? prev.siteHeroTitle,
+        siteHeroSubtitle: detail.siteHeroSubtitle ?? prev.siteHeroSubtitle,
+        siteGlobalNotice: detail.siteGlobalNotice ?? prev.siteGlobalNotice,
+        loveStartDate: detail.loveStartDate ?? prev.loveStartDate,
+      }));
     };
     window.addEventListener('loveDiaryStyleUpdated', onStyleUpdated);
     return () => window.removeEventListener('loveDiaryStyleUpdated', onStyleUpdated);
@@ -141,7 +162,8 @@ export default function App() {
     <>
       {!introDone && <CinematicIntro onDone={() => setIntroDone(true)} />}
       <div className={`app-root ${introDone ? 'app-visible' : 'app-hidden'}`}>
-        <Header memoryCount={memories.length} videoCount={videos.length} />
+        <div className="rb-ambient" aria-hidden="true"><span /><span /><span /></div>
+        <Header memoryCount={memories.length} videoCount={videos.length} siteCopy={siteCopy} />
         <RandomMemoryFlip memories={memories} onOpenMemory={setMemoryViewer} />
         <TabDock tab={tab} onTabChange={handleTabChange} />
         <OnThisDayBanner memories={memories} onOpenMemory={setMemoryViewer} />

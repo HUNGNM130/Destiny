@@ -3,10 +3,20 @@ import { API_URL, BASE_URL, VIDEO_API_URL } from '../App';
 import { exportMemoriesToPDF } from '../utils/exportMemoriesPdf';
 import { toast } from './SweetAlert';
 import { applySiteStyleConfig, FONT_OPTIONS, SITE_STYLE_DEFAULTS } from '../utils/siteStyle';
+import type { Memory } from '../types';
 
 interface GiftConfig {
   appTitle: string;
   appIcon: string;
+  siteHeroEyebrow: string;
+  siteHeroTitle: string;
+  siteHeroSubtitle: string;
+  siteGlobalNotice: string;
+  loveStartDate: string;
+  siteMotionIntensity: string;
+  enableSiteAurora: string;
+  enableCardSpotlight: string;
+  adminWelcomeText: string;
   sitePrimaryColor: string;
   siteAccentColor: string;
   siteBackgroundStart: string;
@@ -40,6 +50,15 @@ interface GiftConfig {
 const defaultConfig: GiftConfig = {
   appTitle: 'Món Quà Nhỏ',
   appIcon: 'assets/images/couple.svg',
+  siteHeroEyebrow: 'Private memory system',
+  siteHeroTitle: 'Our Love Diary',
+  siteHeroSubtitle: 'Mỗi khoảnh khắc là mãi mãi ✦',
+  siteGlobalNotice: '',
+  loveStartDate: '2025-09-20',
+  siteMotionIntensity: '1',
+  enableSiteAurora: 'true',
+  enableCardSpotlight: 'true',
+  adminWelcomeText: 'Điều khiển giao diện, nội dung và trang quà từ một nơi.',
   sitePrimaryColor: SITE_STYLE_DEFAULTS.sitePrimaryColor,
   siteAccentColor: SITE_STYLE_DEFAULTS.siteAccentColor,
   siteBackgroundStart: SITE_STYLE_DEFAULTS.siteBackgroundStart,
@@ -70,7 +89,8 @@ const defaultConfig: GiftConfig = {
   giftEndDate: '',
 };
 
-type Section = 'general' | 'site' | 'effects' | 'letter' | 'media' | 'library' | 'schedule';
+type Section = 'general' | 'content' | 'site' | 'effects' | 'letter' | 'media' | 'library' | 'schedule';
+type AdminRecordTab = 'memories' | 'videos' | 'letters' | 'diary' | 'bucket' | 'goodnight';
 
 interface MediaAuditItem {
   id: number;
@@ -88,6 +108,41 @@ interface AdminVideoItem {
   description?: string;
   filename?: string | null;
   url?: string | null;
+}
+interface AdminLetterItem {
+  id: number;
+  title: string;
+  unlock_at: string;
+  message?: string | null;
+  preview?: string;
+  cover_image?: string | null;
+}
+
+interface AdminDiaryItem {
+  id: number;
+  entry_date: string;
+  mood?: string | null;
+  content: string;
+}
+
+interface AdminBucketItem {
+  id: number;
+  title: string;
+  notes?: string | null;
+  done?: boolean;
+  done_at?: string | null;
+  image?: string | null;
+}
+
+interface AdminGoodnightItem {
+  id: number;
+  message: string;
+  sent_at?: string;
+}
+
+function toDateInput(value?: string | null) {
+  if (!value) return '';
+  return String(value).slice(0, 10);
 }
 
 const GIFT_ICON_ASSETS = [
@@ -124,6 +179,14 @@ export function DashboardTab() {
   const [auditItems, setAuditItems] = useState<MediaAuditItem[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [adminVideos, setAdminVideos] = useState<AdminVideoItem[]>([]);
+  const [adminMemories, setAdminMemories] = useState<Memory[]>([]);
+  const [adminLetters, setAdminLetters] = useState<AdminLetterItem[]>([]);
+  const [adminDiary, setAdminDiary] = useState<AdminDiaryItem[]>([]);
+  const [adminBucket, setAdminBucket] = useState<AdminBucketItem[]>([]);
+  const [adminGoodnight, setAdminGoodnight] = useState<AdminGoodnightItem[]>([]);
+  const [recordsTab, setRecordsTab] = useState<AdminRecordTab>('memories');
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordQuery, setRecordQuery] = useState('');
   const [videoQuery, setVideoQuery] = useState('');
   const [uploading, setUploading] = useState(false);
   const [morphTextsArr, setMorphTextsArr] = useState<string[]>(['happy', "women's day", 'em iu']);
@@ -234,6 +297,128 @@ export function DashboardTab() {
     }
   };
 
+  const loadAdminMemories = async () => {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    setAdminMemories(Array.isArray(data) ? data : []);
+  };
+
+  const loadAdminLetters = async () => {
+    const res = await fetch(`${BASE_URL}/api/admin/letters`);
+    const data = await res.json();
+    setAdminLetters(Array.isArray(data) ? data : []);
+  };
+
+  const loadAdminDiary = async () => {
+    const res = await fetch(`${BASE_URL}/api/diary-entries`);
+    const data = await res.json();
+    setAdminDiary(Array.isArray(data) ? data : []);
+  };
+
+  const loadAdminBucket = async () => {
+    const res = await fetch(`${BASE_URL}/api/bucket-items`);
+    const data = await res.json();
+    setAdminBucket(Array.isArray(data) ? data : []);
+  };
+
+  const loadAdminGoodnight = async () => {
+    const res = await fetch(`${BASE_URL}/api/goodnight-messages`);
+    const data = await res.json();
+    setAdminGoodnight(Array.isArray(data) ? data : []);
+  };
+
+  const loadAdminRecords = async () => {
+    setRecordsLoading(true);
+    try {
+      if (recordsTab === 'memories') await loadAdminMemories();
+      if (recordsTab === 'videos') await loadAdminVideos();
+      if (recordsTab === 'letters') await loadAdminLetters();
+      if (recordsTab === 'diary') await loadAdminDiary();
+      if (recordsTab === 'bucket') await loadAdminBucket();
+      if (recordsTab === 'goodnight') await loadAdminGoodnight();
+    } catch {
+      toast('Không tải được dữ liệu quản trị', 'error');
+    } finally {
+      setRecordsLoading(false);
+    }
+  };
+
+  const saveMemoryQuick = async (m: Memory) => {
+    const fd = new FormData();
+    fd.append('title', m.title || 'Kỷ niệm');
+    fd.append('date', toDateInput(m.date) || new Date().toISOString().slice(0, 10));
+    fd.append('description', m.description || '');
+    fd.append('mood', m.mood || 'happy');
+    fd.append('location', m.location || '');
+    fd.append('music', m.music || '');
+    fd.append('music_url', m.music_url || '');
+    fd.append('music_kind', m.music_kind || '');
+    fd.append('music_file_id', m.music_file_id ? String(m.music_file_id) : '');
+    fd.append('latitude', m.latitude != null ? String(m.latitude) : '');
+    fd.append('longitude', m.longitude != null ? String(m.longitude) : '');
+    fd.append('place_name', m.place_name || '');
+    fd.append('is_capsule', m.is_capsule ? 'true' : 'false');
+    fd.append('capsule_unlock_at', m.capsule_unlock_at || '');
+    const res = await fetch(`${API_URL}/${m.id}`, { method: 'PUT', body: fd });
+    if (res.ok) { toast('Đã lưu kỷ niệm', 'success'); loadAdminMemories(); }
+    else toast('Không lưu được kỷ niệm', 'error');
+  };
+
+  const saveVideoQuick = async (v: AdminVideoItem) => {
+    const fd = new FormData();
+    fd.append('title', v.title || 'Video');
+    fd.append('date', toDateInput(v.date) || new Date().toISOString().slice(0, 10));
+    fd.append('description', v.description || '');
+    const res = await fetch(`${VIDEO_API_URL}/${v.id}`, { method: 'PUT', body: fd });
+    if (res.ok) { toast('Đã lưu video', 'success'); loadAdminVideos(); }
+    else toast('Không lưu được video', 'error');
+  };
+
+  const saveLetterQuick = async (letter: AdminLetterItem) => {
+    const res = await fetch(`${BASE_URL}/api/letters/${letter.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: letter.title,
+        unlock_at: toDateInput(letter.unlock_at),
+        message: letter.message || letter.preview || '',
+        cover_image: letter.cover_image || null,
+      }),
+    });
+    if (res.ok) { toast('Đã lưu thư', 'success'); loadAdminLetters(); }
+    else toast('Không lưu được thư', 'error');
+  };
+
+  const saveDiaryQuick = async (entry: AdminDiaryItem) => {
+    const res = await fetch(`${BASE_URL}/api/diary-entries/${entry.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entry_date: toDateInput(entry.entry_date), mood: entry.mood || null, content: entry.content }),
+    });
+    if (res.ok) { toast('Đã lưu nhật ký', 'success'); loadAdminDiary(); }
+    else toast('Không lưu được nhật ký', 'error');
+  };
+
+  const saveBucketQuick = async (item: AdminBucketItem) => {
+    const res = await fetch(`${BASE_URL}/api/bucket-items/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: item.title, notes: item.notes || '', done: !!item.done, done_at: item.done_at || null, image: item.image || null }),
+    });
+    if (res.ok) { toast('Đã lưu bucket item', 'success'); loadAdminBucket(); }
+    else toast('Không lưu được bucket item', 'error');
+  };
+
+  const saveGoodnightQuick = async (item: AdminGoodnightItem) => {
+    const res = await fetch(`${BASE_URL}/api/goodnight-messages/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: item.message }),
+    });
+    if (res.ok) { toast('Đã lưu lời chúc', 'success'); loadAdminGoodnight(); }
+    else toast('Không lưu được lời chúc', 'error');
+  };
+
   const clearMemoryImage = async (id: number) => {
     const ok = window.confirm('Xóa link ảnh khỏi kỷ niệm này? Nội dung kỷ niệm vẫn được giữ.');
     if (!ok) return;
@@ -263,6 +448,10 @@ export function DashboardTab() {
     }
   }, [section]);
 
+  useEffect(() => {
+    if (section === 'content') loadAdminRecords();
+  }, [section, recordsTab]);
+
   const field = (key: keyof GiftConfig, value: string) =>
     setCfg(c => ({ ...c, [key]: value }));
 
@@ -277,6 +466,7 @@ export function DashboardTab() {
 
   const sections: { id: Section; emoji: string; label: string }[] = [
     { id: 'general',  emoji: '⚙️',  label: 'Chung' },
+    { id: 'content',  emoji: '🧩',  label: 'Nội dung web' },
     { id: 'site',     emoji: '🎨',  label: 'Màu & font web' },
     { id: 'effects',  emoji: '✨',  label: 'Hiệu ứng' },
     { id: 'letter',   emoji: '💌',  label: 'Lá thư' },
@@ -285,13 +475,25 @@ export function DashboardTab() {
     { id: 'schedule', emoji: '📅',  label: 'Lịch hiển thị' },
   ];
 
+  const recordTabs: { id: AdminRecordTab; emoji: string; label: string; count: number }[] = [
+    { id: 'memories',  emoji: '📷', label: 'Kỷ niệm', count: adminMemories.length },
+    { id: 'videos',    emoji: '🎬', label: 'Video', count: adminVideos.length },
+    { id: 'letters',   emoji: '💌', label: 'Thư', count: adminLetters.length },
+    { id: 'diary',     emoji: '📓', label: 'Nhật ký', count: adminDiary.length },
+    { id: 'bucket',    emoji: '🎯', label: 'Bucket', count: adminBucket.length },
+    { id: 'goodnight', emoji: '🌙', label: 'Good night', count: adminGoodnight.length },
+  ];
+
+  const q = recordQuery.trim().toLowerCase();
+
   return (
     <div className="dashboard-root">
       {/* Header */}
       <div className="db-header">
         <div>
-          <div className="db-title">🎁 Dashboard Quà Tặng</div>
-          <div className="db-subtitle">Chỉnh sửa trang Món Quà Nhỏ</div>
+          <div className="db-kicker">React Bits inspired</div>
+          <div className="db-title">⚡ Admin Command Center</div>
+          <div className="db-subtitle">{cfg.adminWelcomeText || 'Chỉnh sửa toàn bộ website trong một dashboard'}</div>
         </div>
         <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
           <button className="db-btn-outline" onClick={exportPdf}>📤 Xuất PDF</button>
@@ -341,6 +543,21 @@ export function DashboardTab() {
               </div>
             </div>
 
+            <div className="db-card db-card-wide db-reactbits-card">
+              <div className="db-card-title">🪄 Hero website chính</div>
+              <p className="db-help">Các trường này đổi trực tiếp phần đầu trang của app chính — tiêu đề, subtitle, badge và thông báo nổi.</p>
+              <label className="db-label">Badge / Eyebrow</label>
+              <input className="db-input" value={cfg.siteHeroEyebrow} onChange={e => field('siteHeroEyebrow', e.target.value)} placeholder="Private memory system" />
+              <label className="db-label">Tiêu đề lớn</label>
+              <input className="db-input" value={cfg.siteHeroTitle} onChange={e => field('siteHeroTitle', e.target.value)} placeholder="Our Love Diary" />
+              <label className="db-label">Subtitle</label>
+              <input className="db-input" value={cfg.siteHeroSubtitle} onChange={e => field('siteHeroSubtitle', e.target.value)} placeholder="Mỗi khoảnh khắc là mãi mãi ✦" />
+              <label className="db-label">Ngày bắt đầu yêu</label>
+              <input type="date" className="db-input" value={cfg.loveStartDate} onChange={e => field('loveStartDate', e.target.value)} />
+              <label className="db-label">Thông báo nổi trên trang chủ</label>
+              <textarea className="db-textarea" rows={3} value={cfg.siteGlobalNotice} onChange={e => field('siteGlobalNotice', e.target.value)} placeholder="Ví dụ: Có một kỷ niệm mới vừa được thêm vào..." />
+            </div>
+
             <div className="db-card">
               <div className="db-card-title">🔐 Mật khẩu</div>
               <div className="db-toggle-row" style={{ marginBottom:'14px' }}>
@@ -360,6 +577,158 @@ export function DashboardTab() {
                 </>
               )}
             </div>
+          </div>
+        )}
+ 
+
+        {/* ── CONTENT MANAGER ── */}
+        {section === 'content' && (
+          <div className="db-section">
+            <div className="db-card db-card-wide db-command-panel">
+              <div>
+                <div className="db-kicker">Full-site editor</div>
+                <div className="db-card-title">🧩 Quản trị nội dung toàn website</div>
+                <p className="db-help">Sửa nhanh tiêu đề, ngày, mô tả và trạng thái của các phần chính mà không cần rời dashboard.</p>
+              </div>
+              <div className="db-command-actions">
+                <input className="db-input" value={recordQuery} onChange={e => setRecordQuery(e.target.value)} placeholder="Tìm nhanh theo tiêu đề / nội dung..." />
+                <button className="db-btn-outline" onClick={loadAdminRecords}>{recordsLoading ? '⏳ Đang tải...' : '↻ Làm mới'}</button>
+              </div>
+            </div>
+
+            <div className="db-record-tabs">
+              {recordTabs.map(t => (
+                <button key={t.id} className={`db-record-tab ${recordsTab === t.id ? 'active' : ''}`} onClick={() => setRecordsTab(t.id)}>
+                  <span>{t.emoji}</span><b>{t.label}</b><em>{t.count}</em>
+                </button>
+              ))}
+            </div>
+
+            {recordsTab === 'memories' && (
+              <div className="db-record-grid">
+                {adminMemories
+                  .filter(m => !q || [m.title, m.description, m.location, m.music].some(x => (x || '').toLowerCase().includes(q)))
+                  .slice(0, 24)
+                  .map(m => (
+                  <article className="db-record-card" key={m.id}>
+                    <div className="db-record-head"><span>#{m.id}</span><strong>Kỷ niệm</strong></div>
+                    <label className="db-label">Tiêu đề</label>
+                    <input className="db-input" value={m.title} onChange={e => setAdminMemories(prev => prev.map(x => x.id === m.id ? { ...x, title: e.target.value } : x))} />
+                    <label className="db-label">Ngày</label>
+                    <input type="date" className="db-input" value={toDateInput(m.date)} onChange={e => setAdminMemories(prev => prev.map(x => x.id === m.id ? { ...x, date: e.target.value } : x))} />
+                    <label className="db-label">Mô tả</label>
+                    <textarea className="db-textarea" rows={3} value={m.description || ''} onChange={e => setAdminMemories(prev => prev.map(x => x.id === m.id ? { ...x, description: e.target.value } : x))} />
+                    <div className="db-two-cols">
+                      <div><label className="db-label">Mood</label><input className="db-input" value={m.mood || ''} onChange={e => setAdminMemories(prev => prev.map(x => x.id === m.id ? { ...x, mood: e.target.value } : x))} /></div>
+                      <div><label className="db-label">Địa điểm</label><input className="db-input" value={m.location || ''} onChange={e => setAdminMemories(prev => prev.map(x => x.id === m.id ? { ...x, location: e.target.value } : x))} /></div>
+                    </div>
+                    <div className="db-record-actions">
+                      <button className="db-btn-save" onClick={() => saveMemoryQuick(m)}>💾 Lưu</button>
+                      <button className="db-btn-outline" onClick={() => window.open(m.image || '', '_blank')} disabled={!m.image}>Mở ảnh</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {recordsTab === 'videos' && (
+              <div className="db-record-grid">
+                {adminVideos
+                  .filter(v => !q || [v.title, v.description].some(x => (x || '').toLowerCase().includes(q)))
+                  .slice(0, 24)
+                  .map(v => (
+                  <article className="db-record-card" key={v.id}>
+                    <div className="db-record-head"><span>#{v.id}</span><strong>Video</strong></div>
+                    <label className="db-label">Tiêu đề</label>
+                    <input className="db-input" value={v.title} onChange={e => setAdminVideos(prev => prev.map(x => x.id === v.id ? { ...x, title: e.target.value } : x))} />
+                    <label className="db-label">Ngày</label>
+                    <input type="date" className="db-input" value={toDateInput(v.date)} onChange={e => setAdminVideos(prev => prev.map(x => x.id === v.id ? { ...x, date: e.target.value } : x))} />
+                    <label className="db-label">Mô tả</label>
+                    <textarea className="db-textarea" rows={3} value={v.description || ''} onChange={e => setAdminVideos(prev => prev.map(x => x.id === v.id ? { ...x, description: e.target.value } : x))} />
+                    <div className="db-record-actions"><button className="db-btn-save" onClick={() => saveVideoQuick(v)}>💾 Lưu</button></div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {recordsTab === 'letters' && (
+              <div className="db-record-grid">
+                {adminLetters
+                  .filter(l => !q || [l.title, l.message, l.preview].some(x => (x || '').toLowerCase().includes(q)))
+                  .slice(0, 24)
+                  .map(l => (
+                  <article className="db-record-card" key={l.id}>
+                    <div className="db-record-head"><span>#{l.id}</span><strong>Thư khóa hẹn</strong></div>
+                    <label className="db-label">Tiêu đề</label>
+                    <input className="db-input" value={l.title} onChange={e => setAdminLetters(prev => prev.map(x => x.id === l.id ? { ...x, title: e.target.value } : x))} />
+                    <label className="db-label">Ngày mở khóa</label>
+                    <input type="date" className="db-input" value={toDateInput(l.unlock_at)} onChange={e => setAdminLetters(prev => prev.map(x => x.id === l.id ? { ...x, unlock_at: e.target.value } : x))} />
+                    <label className="db-label">Nội dung</label>
+                    <textarea className="db-textarea" rows={4} value={l.message || l.preview || ''} onChange={e => setAdminLetters(prev => prev.map(x => x.id === l.id ? { ...x, message: e.target.value } : x))} />
+                    <label className="db-label">Ảnh bìa</label>
+                    <input className="db-input" value={l.cover_image || ''} onChange={e => setAdminLetters(prev => prev.map(x => x.id === l.id ? { ...x, cover_image: e.target.value } : x))} />
+                    <div className="db-record-actions"><button className="db-btn-save" onClick={() => saveLetterQuick(l)}>💾 Lưu</button></div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {recordsTab === 'diary' && (
+              <div className="db-record-grid">
+                {adminDiary
+                  .filter(d => !q || [d.content, d.mood].some(x => (x || '').toLowerCase().includes(q)))
+                  .slice(0, 24)
+                  .map(d => (
+                  <article className="db-record-card" key={d.id}>
+                    <div className="db-record-head"><span>#{d.id}</span><strong>Nhật ký</strong></div>
+                    <label className="db-label">Ngày</label>
+                    <input type="date" className="db-input" value={toDateInput(d.entry_date)} onChange={e => setAdminDiary(prev => prev.map(x => x.id === d.id ? { ...x, entry_date: e.target.value } : x))} />
+                    <label className="db-label">Mood</label>
+                    <input className="db-input" value={d.mood || ''} onChange={e => setAdminDiary(prev => prev.map(x => x.id === d.id ? { ...x, mood: e.target.value } : x))} />
+                    <label className="db-label">Nội dung</label>
+                    <textarea className="db-textarea" rows={5} value={d.content || ''} onChange={e => setAdminDiary(prev => prev.map(x => x.id === d.id ? { ...x, content: e.target.value } : x))} />
+                    <div className="db-record-actions"><button className="db-btn-save" onClick={() => saveDiaryQuick(d)}>💾 Lưu</button></div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {recordsTab === 'bucket' && (
+              <div className="db-record-grid">
+                {adminBucket
+                  .filter(b => !q || [b.title, b.notes].some(x => (x || '').toLowerCase().includes(q)))
+                  .slice(0, 24)
+                  .map(b => (
+                  <article className="db-record-card" key={b.id}>
+                    <div className="db-record-head"><span>#{b.id}</span><strong>Bucket item</strong></div>
+                    <label className="db-label">Tiêu đề</label>
+                    <input className="db-input" value={b.title} onChange={e => setAdminBucket(prev => prev.map(x => x.id === b.id ? { ...x, title: e.target.value } : x))} />
+                    <label className="db-label">Ghi chú</label>
+                    <textarea className="db-textarea" rows={3} value={b.notes || ''} onChange={e => setAdminBucket(prev => prev.map(x => x.id === b.id ? { ...x, notes: e.target.value } : x))} />
+                    <div className="db-toggle-row"><span className="db-toggle-label">Hoàn thành</span><div className={`db-toggle ${b.done ? 'on' : ''}`} onClick={() => setAdminBucket(prev => prev.map(x => x.id === b.id ? { ...x, done: !x.done } : x))}><div className="db-toggle-knob" /></div></div>
+                    <label className="db-label">Ngày hoàn thành</label>
+                    <input type="date" className="db-input" value={toDateInput(b.done_at)} onChange={e => setAdminBucket(prev => prev.map(x => x.id === b.id ? { ...x, done_at: e.target.value } : x))} />
+                    <div className="db-record-actions"><button className="db-btn-save" onClick={() => saveBucketQuick(b)}>💾 Lưu</button></div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {recordsTab === 'goodnight' && (
+              <div className="db-record-grid">
+                {adminGoodnight
+                  .filter(g => !q || (g.message || '').toLowerCase().includes(q))
+                  .slice(0, 24)
+                  .map(g => (
+                  <article className="db-record-card" key={g.id}>
+                    <div className="db-record-head"><span>#{g.id}</span><strong>Lời chúc ngủ ngon</strong></div>
+                    <label className="db-label">Tin nhắn</label>
+                    <textarea className="db-textarea" rows={4} value={g.message || ''} onChange={e => setAdminGoodnight(prev => prev.map(x => x.id === g.id ? { ...x, message: e.target.value } : x))} />
+                    <div className="db-record-actions"><button className="db-btn-save" onClick={() => saveGoodnightQuick(g)}>💾 Lưu</button></div>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -396,6 +765,13 @@ export function DashboardTab() {
                   <b style={{ fontFamily: cfg.siteFontDisplay }}>Preview giao diện</b>
                   <small style={{ fontFamily: cfg.siteFontBody }}>Màu và font sẽ đổi ngay sau khi bấm Lưu.</small>
                 </div>
+              </div>
+
+              <div className="db-effects-matrix">
+                <div className="db-toggle-row"><span className="db-toggle-label">🌌 Aurora background React Bits style</span><div className={`db-toggle ${cfg.enableSiteAurora === 'true' ? 'on' : ''}`} onClick={() => toggleBool('enableSiteAurora')}><div className="db-toggle-knob" /></div></div>
+                <div className="db-toggle-row"><span className="db-toggle-label">🪩 Card spotlight / glass hover</span><div className={`db-toggle ${cfg.enableCardSpotlight === 'true' ? 'on' : ''}`} onClick={() => toggleBool('enableCardSpotlight')}><div className="db-toggle-knob" /></div></div>
+                <label className="db-label">Cường độ motion ({Number(cfg.siteMotionIntensity || 1).toFixed(1)}x)</label>
+                <input type="range" min="0" max="2" step="0.1" value={cfg.siteMotionIntensity} onChange={e => field('siteMotionIntensity', e.target.value)} style={{ width:'100%', accentColor:'var(--rose)' }} />
               </div>
             </div>
 

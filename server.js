@@ -183,6 +183,15 @@ const pool = new Pool({
     const defaults = [
       ['appTitle',               'Món Quà Nhỏ'],
       ['appIcon',                'assets/images/couple.svg'],
+      ['siteHeroEyebrow',        'Private memory system'],
+      ['siteHeroTitle',          'Our Love Diary'],
+      ['siteHeroSubtitle',       'Mỗi khoảnh khắc là mãi mãi ✦'],
+      ['siteGlobalNotice',       ''],
+      ['loveStartDate',          '2025-09-20'],
+      ['siteMotionIntensity',    '1'],
+      ['enableSiteAurora',       'true'],
+      ['enableCardSpotlight',    'true'],
+      ['adminWelcomeText',       'Điều khiển giao diện, nội dung và trang quà từ một nơi.'],
       ['sitePrimaryColor',       '#c97b8a'],
       ['siteAccentColor',        '#e8a0b0'],
       ['siteBackgroundStart',    '#fff5ee'],
@@ -445,6 +454,11 @@ app.get("/mon-qua-nho/config.js", async (req, res) => {
     const js = `window.APP_CONFIG = ${JSON.stringify({
       appTitle:                cfg.appTitle         || "Món Quà Nhỏ",
       appIcon:                 cfg.appIcon          || "assets/images/couple.svg",
+      siteHeroEyebrow:          cfg.siteHeroEyebrow  || "Private memory system",
+      siteHeroTitle:            cfg.siteHeroTitle    || cfg.appTitle || "Món Quà Nhỏ",
+      siteHeroSubtitle:         cfg.siteHeroSubtitle || "Mỗi khoảnh khắc là mãi mãi ✦",
+      siteGlobalNotice:         cfg.siteGlobalNotice || "",
+      loveStartDate:            cfg.loveStartDate    || "2025-09-20",
       siteStyle: {
         primaryColor:       cfg.sitePrimaryColor    || "#c97b8a",
         accentColor:        cfg.siteAccentColor     || "#e8a0b0",
@@ -769,8 +783,13 @@ app.post("/api/bucket-items", async (req, res) => {
 });
 app.patch("/api/bucket-items/:id", async (req, res) => {
   try {
-    const { done, done_at, image, create_memory } = req.body;
-    const r = await pool.query("UPDATE bucket_items SET done=$1,done_at=$2,image=$3 WHERE id=$4 RETURNING *", [boolish(done), done_at || (boolish(done) ? new Date().toISOString().slice(0,10) : null), image || null, req.params.id]);
+    const { title, notes, done, done_at, image, create_memory } = req.body;
+    const existing = await pool.query("SELECT title,notes,done,done_at,image FROM bucket_items WHERE id=$1", [req.params.id]);
+    if (!existing.rowCount) return res.status(404).json({ error: "Not found" });
+    const current = existing.rows[0];
+    const nextDone = done === undefined ? current.done : boolish(done);
+    const nextDoneAt = done_at !== undefined ? (done_at || null) : (nextDone ? (current.done_at || new Date().toISOString().slice(0,10)) : null);
+    const r = await pool.query("UPDATE bucket_items SET title=$1,notes=$2,done=$3,done_at=$4,image=$5 WHERE id=$6 RETURNING *", [title ?? current.title, notes ?? current.notes, nextDone, nextDoneAt, image ?? current.image, req.params.id]);
     if (!r.rowCount) return res.status(404).json({ error: "Not found" });
     let memory = null;
     if (boolish(done) && boolish(create_memory) && !r.rows[0].memory_id) {
@@ -816,6 +835,13 @@ function letterIsUnlocked(unlockAt) {
   return d.getTime() <= today.getTime();
 }
 
+app.get("/api/admin/letters", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT * FROM love_letters ORDER BY unlock_at ASC, id DESC");
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get("/api/letters", async (req, res) => {
   try {
     const r = await pool.query("SELECT * FROM love_letters ORDER BY unlock_at ASC, id DESC");
@@ -850,6 +876,40 @@ app.delete("/api/letters/:id", async (req, res) => {
     await pool.query("DELETE FROM love_letters WHERE id=$1", [req.params.id]);
     io.emit("lettersUpdated");
     res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put("/api/letters/:id", async (req, res) => {
+  try {
+    const { title, unlock_at, message, cover_image } = req.body;
+    if (!title || !unlock_at || !message) return res.status(400).json({ error: "Thiếu title, ngày mở khóa hoặc nội dung thư" });
+    const r = await pool.query(
+      "UPDATE love_letters SET title=$1,unlock_at=$2,message=$3,cover_image=$4 WHERE id=$5 RETURNING *",
+      [title, unlock_at, message, cover_image || null, req.params.id]
+    );
+    if (!r.rowCount) return res.status(404).json({ error: "Not found" });
+    io.emit("lettersUpdated");
+    res.json({ success: true, letter: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put("/api/diary-entries/:id", async (req, res) => {
+  try {
+    const { entry_date, mood, content } = req.body;
+    if (!entry_date || !content) return res.status(400).json({ error: "Thiếu ngày hoặc nội dung" });
+    const r = await pool.query("UPDATE diary_entries SET entry_date=$1,mood=$2,content=$3,updated_at=NOW() WHERE id=$4 RETURNING *", [entry_date, mood || null, content, req.params.id]);
+    if (!r.rowCount) return res.status(404).json({ error: "Not found" });
+    res.json({ success: true, entry: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch("/api/goodnight-messages/:id", async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Thiếu tin nhắn" });
+    const r = await pool.query("UPDATE goodnight_messages SET message=$1 WHERE id=$2 RETURNING *", [message, req.params.id]);
+    if (!r.rowCount) return res.status(404).json({ error: "Not found" });
+    res.json({ success: true, item: r.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
