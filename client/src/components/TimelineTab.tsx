@@ -9,16 +9,29 @@ function sameMonthDay(a: Date, b: Date) {
 
 export function TimelineTab({ memories, onOpenMemory }: Props) {
   const today = new Date();
-  const grouped = useMemo(() => {
-    const map = new Map<string, Memory[]>();
+  const groupedByYear = useMemo(() => {
+    const yearMap = new Map<string, Memory[]>();
     memories.forEach(m => {
-      const d = new Date(m.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      map.set(key, [...(map.get(key) || []), m]);
+      const year = String(new Date(m.date).getFullYear());
+      yearMap.set(year, [...(yearMap.get(year) || []), m]);
     });
-    return Array.from(map.entries())
+    return Array.from(yearMap.entries())
       .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([key, items]) => ({ key, items: items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) }));
+      .map(([year, items]) => {
+        const monthMap = new Map<string, Memory[]>();
+        items.forEach(m => {
+          const d = new Date(m.date);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          monthMap.set(key, [...(monthMap.get(key) || []), m]);
+        });
+        return {
+          year,
+          count: items.length,
+          months: Array.from(monthMap.entries())
+            .sort((a, b) => b[0].localeCompare(a[0]))
+            .map(([key, monthItems]) => ({ key, items: monthItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) })),
+        };
+      });
   }, [memories]);
 
   const todayMemories = useMemo(() => {
@@ -34,7 +47,7 @@ export function TimelineTab({ memories, onOpenMemory }: Props) {
       <section className="feature-hero timeline-hero">
         <span className="eyebrow">Timeline</span>
         <h2>Dòng thời gian tình yêu</h2>
-        <p>Mỗi tháng là một chương nhỏ, mỗi ảnh là một dấu mốc đáng nhớ.</p>
+        <p>Mỗi năm là một chương lớn, bên trong là các tháng và những khoảnh khắc đáng nhớ.</p>
       </section>
 
       <section className="today-memory-card">
@@ -53,30 +66,40 @@ export function TimelineTab({ memories, onOpenMemory }: Props) {
         </div>
       </section>
 
-      <div className="timeline-stream">
-        {grouped.map(group => {
-          const date = new Date(`${group.key}-01`);
-          return (
-            <section className="timeline-month" key={group.key}>
-              <div className="timeline-month-label">
-                <strong>{date.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}</strong>
-                <span>{group.items.length} kỷ niệm</span>
-              </div>
-              <div className="timeline-items">
-                {group.items.map(m => (
-                  <button className="timeline-item" key={m.id} onClick={() => onOpenMemory?.(m)}>
-                    {m.image && <img src={m.image} alt={m.title} />}
-                    <div>
-                      <small>{new Date(m.date).toLocaleDateString('vi-VN')}</small>
-                      <h4>{m.title}</h4>
-                      {m.description && <p>{m.description}</p>}
+      <div className="timeline-stream year-mode">
+        {groupedByYear.map(yearGroup => (
+          <section className="timeline-year" key={yearGroup.year}>
+            <div className="timeline-year-label">
+              <strong>{yearGroup.year}</strong>
+              <span>{yearGroup.count} kỷ niệm</span>
+            </div>
+            <div className="timeline-year-content">
+              {yearGroup.months.map(group => {
+                const date = new Date(`${group.key}-01`);
+                return (
+                  <section className="timeline-month" key={group.key}>
+                    <div className="timeline-month-label">
+                      <strong>{date.toLocaleDateString('vi-VN', { month: 'long' })}</strong>
+                      <span>{group.items.length} kỷ niệm</span>
                     </div>
-                  </button>
-                ))}
-              </div>
-            </section>
-          );
-        })}
+                    <div className="timeline-items">
+                      {group.items.map(m => (
+                        <button className="timeline-item" key={m.id} onClick={() => onOpenMemory?.(m)}>
+                          {m.image && <img src={m.image} alt={m.title} />}
+                          <div>
+                            <small>{new Date(m.date).toLocaleDateString('vi-VN')}</small>
+                            <h4>{m.title}</h4>
+                            {m.description && <p>{m.description}</p>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   );

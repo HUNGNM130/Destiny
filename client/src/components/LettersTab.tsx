@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BASE_URL } from '../App';
 import { toast } from './SweetAlert';
 
@@ -15,11 +15,24 @@ interface Letter {
 
 const emptyForm = { title: '', unlock_at: '', message: '', cover_image: '' };
 
+function countdownText(unlockAt: string, now: Date) {
+  const target = new Date(unlockAt);
+  target.setHours(0, 0, 0, 0);
+  const diff = target.getTime() - now.getTime();
+  if (diff <= 0) return 'Đã mở khóa';
+  const totalHours = Math.ceil(diff / 3600000);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  if (days > 0) return `Còn ${days} ngày ${hours} giờ`;
+  return `Còn ${hours} giờ`;
+}
+
 export function LettersTab() {
   const [letters, setLetters] = useState<Letter[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
   const [open, setOpen] = useState<Letter | null>(null);
+  const [now, setNow] = useState(() => new Date());
 
   const load = async () => {
     const res = await fetch(`${BASE_URL}/api/letters`);
@@ -27,6 +40,12 @@ export function LettersTab() {
   };
 
   useEffect(() => { load().catch(() => {}); }, []);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const nextLetter = useMemo(() => letters.filter(l => !l.unlocked).sort((a, b) => new Date(a.unlock_at).getTime() - new Date(b.unlock_at).getTime())[0], [letters]);
 
   const save = async () => {
     if (!form.title || !form.unlock_at || !form.message) return toast('Nhập đủ tiêu đề, ngày mở và nội dung nha', 'error');
@@ -64,6 +83,14 @@ export function LettersTab() {
         </section>
       )}
 
+      {nextLetter && (
+        <section className="next-letter-countdown">
+          <span>🔒 Thư tiếp theo</span>
+          <b>{nextLetter.title}</b>
+          <strong>{countdownText(nextLetter.unlock_at, now)}</strong>
+        </section>
+      )}
+
       <div className="letters-grid">
         {letters.map(letter => (
           <article key={letter.id} className={`letter-card ${letter.unlocked ? 'unlocked' : 'locked'}`}>
@@ -72,6 +99,7 @@ export function LettersTab() {
             <h3>{letter.title}</h3>
             <p>{letter.preview}</p>
             <small>Mở khóa: {new Date(letter.unlock_at).toLocaleDateString('vi-VN')}</small>
+            {!letter.unlocked && <div className="letter-countdown">⏳ {countdownText(letter.unlock_at, now)}</div>}
             <div className="letter-actions">
               <button className="btn-search" disabled={!letter.unlocked} onClick={() => setOpen(letter)}>{letter.unlocked ? 'Đọc thư' : 'Chưa tới ngày'}</button>
               <button className="btn-search danger" onClick={() => remove(letter.id)}>Xóa</button>

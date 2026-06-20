@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { BASE_URL, VIDEO_API_URL } from '../App';
+import { API_URL, BASE_URL, VIDEO_API_URL } from '../App';
+import { exportMemoriesToPDF } from '../utils/exportMemoriesPdf';
 import { toast } from './SweetAlert';
 
 interface GiftConfig {
@@ -96,6 +97,18 @@ export function DashboardTab() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+
+  const exportPdf = async () => {
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      exportMemoriesToPDF(Array.isArray(data) ? data : []);
+      toast('Đã mở bản in PDF. Chọn Save as PDF trong hộp thoại in nhé 💌', 'success');
+    } catch {
+      toast('Không xuất được PDF lúc này', 'error');
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -232,6 +245,7 @@ export function DashboardTab() {
           <div className="db-subtitle">Chỉnh sửa trang Món Quà Nhỏ</div>
         </div>
         <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
+          <button className="db-btn-outline" onClick={exportPdf}>📤 Xuất PDF</button>
           <a
             href={`${BASE_URL}/mon-qua-nho/`}
             target="_blank"

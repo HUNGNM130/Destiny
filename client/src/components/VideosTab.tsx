@@ -206,7 +206,11 @@ export function VideosTab({ videos, loading, onAdd, onEdit, onDelete, onPlay }: 
         <label className="toolbar-search-wrap"><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm video..." /></label>
         <span className="toolbar-count">{filteredVideos.length}/{videos.length} video</span>
       </div>
-      <div id="videoContainer" ref={containerRef} />
+      {loading ? (
+        <div className="skeleton-grid" aria-label="Đang tải video">
+          {Array.from({ length: 4 }).map((_, i) => <div className="skeleton-card" key={i}><span /><b /><p /><p /></div>)}
+        </div>
+      ) : <div id="videoContainer" ref={containerRef} />}
     </div>
   );
 }

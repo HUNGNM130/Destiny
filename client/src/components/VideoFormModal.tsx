@@ -16,10 +16,32 @@ export function VideoFormModal({ editing, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [previewSrc, setPreviewSrc] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef({ startY: 0, currentY: 0, active: false });
 
   const previewVideo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) setPreviewSrc(URL.createObjectURL(file));
+  };
+
+  const handleSheetPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    dragRef.current = { startY: e.clientY, currentY: 0, active: true };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleSheetPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragRef.current.active || !sheetRef.current) return;
+    const delta = Math.max(0, e.clientY - dragRef.current.startY);
+    dragRef.current.currentY = delta;
+    sheetRef.current.style.transform = `translateY(${delta}px)`;
+  };
+
+  const handleSheetPointerUp = () => {
+    if (!sheetRef.current) return;
+    const shouldClose = dragRef.current.currentY > 90;
+    dragRef.current.active = false;
+    sheetRef.current.style.transform = '';
+    if (shouldClose) onClose();
   };
 
   const handleSave = async () => {
@@ -57,7 +79,8 @@ export function VideoFormModal({ editing, onClose, onSaved }: Props) {
 
   return (
     <div id="videoFormOverlay" style={{ display: 'flex' }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="form-card">
+      <div ref={sheetRef} className="form-card bottom-sheet-card">
+        <button type="button" className="bottom-sheet-handle" aria-label="Kéo xuống để đóng" onPointerDown={handleSheetPointerDown} onPointerMove={handleSheetPointerMove} onPointerUp={handleSheetPointerUp} onPointerCancel={handleSheetPointerUp}><span /></button>
         <h2>{editing ? 'Sửa video ✦' : 'Thêm video'}</h2>
 
         <div className="form-group">
@@ -74,10 +97,10 @@ export function VideoFormModal({ editing, onClose, onSaved }: Props) {
         </div>
         <div className="form-group">
           <label>Video 🎬</label>
-          <div className="upload-area">
+          <label className="upload-area" style={{ display: 'block' }}>
             <input ref={fileInputRef} type="file" accept="video/*" onChange={previewVideo} />
             <p>Nhấn để chọn video ♥</p>
-          </div>
+          </label>
           {previewSrc && (
             <video src={previewSrc} controls style={{ width: '100%', marginTop: 10, borderRadius: 6 }} />
           )}
@@ -86,6 +109,7 @@ export function VideoFormModal({ editing, onClose, onSaved }: Props) {
         <div className="form-buttons">
           <button className="btn-cancel" onClick={onClose}>Huỷ</button>
           <button className="btn-save" onClick={handleSave} disabled={saving}>
+            {saving ? 'Đang lưu...' : 'Lưu video ♥'}
           </button>
         </div>
       </div>

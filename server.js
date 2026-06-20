@@ -41,7 +41,7 @@ const pool = new Pool({
         image       TEXT,
         mood        VARCHAR(50)  DEFAULT 'happy',
         location    VARCHAR(255) DEFAULT NULL,
-        music       VARCHAR(255) DEFAULT NULL,
+        music       TEXT DEFAULT NULL,
         pos_x       FLOAT        DEFAULT NULL,
         pos_y       FLOAT        DEFAULT NULL,
         pos_rotate  FLOAT        DEFAULT NULL,
@@ -49,6 +49,13 @@ const pool = new Pool({
       )
     `);
     await pool.query(`ALTER TABLE memories ALTER COLUMN image TYPE TEXT`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS mood VARCHAR(50) DEFAULT 'happy'`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS location VARCHAR(255) DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS music TEXT DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ALTER COLUMN music TYPE TEXT`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS pos_x FLOAT DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS pos_y FLOAT DEFAULT NULL`).catch(() => {});
+    await pool.query(`ALTER TABLE memories ADD COLUMN IF NOT EXISTS pos_rotate FLOAT DEFAULT NULL`).catch(() => {});
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS videos (
@@ -470,7 +477,7 @@ app.get("/memories", async (req, res) => {
 app.post("/memories", (req, res) => {
   uploadImage.single("image")(req, res, async (uploadErr) => {
     if (uploadErr) { console.error("[UPLOAD ERROR]", uploadErr.message); req.file = null; }
-    const { title, date, description } = req.body;
+    const { title, date, description, mood, location, music } = req.body;
     if (!title || !date) return res.status(400).json({ error: "Thiếu title hoặc date" });
 
     let image = null;
@@ -481,8 +488,8 @@ app.post("/memories", (req, res) => {
 
     try {
       const r = await pool.query(
-        "INSERT INTO memories (title,date,description,image) VALUES ($1,$2,$3,$4) RETURNING *",
-        [title, date, description, image]
+        "INSERT INTO memories (title,date,description,image,mood,location,music) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *",
+        [title, date, description, image, mood || null, location || null, music || null]
       );
       const saved = r.rows[0];
       io.emit("memoryAdded", saved);
@@ -494,7 +501,7 @@ app.post("/memories", (req, res) => {
 app.put("/memories/:id", (req, res) => {
   uploadImage.single("image")(req, res, async (uploadErr) => {
     if (uploadErr) { console.error("[UPLOAD ERROR]", uploadErr.message); req.file = null; }
-    const { title, date, description } = req.body;
+    const { title, date, description, mood, location, music } = req.body;
     const { id } = req.params;
 
     let imageUrl = null;
@@ -506,15 +513,15 @@ app.put("/memories/:id", (req, res) => {
     try {
       if (imageUrl) {
         await pool.query(
-          "UPDATE memories SET title=$1,date=$2,description=$3,image=$4 WHERE id=$5",
-          [title, date, description, imageUrl, id]
+          "UPDATE memories SET title=$1,date=$2,description=$3,image=$4,mood=$5,location=$6,music=$7 WHERE id=$8",
+          [title, date, description, imageUrl, mood || null, location || null, music || null, id]
         );
       } else {
         const r = await pool.query("SELECT image FROM memories WHERE id=$1", [id]);
         imageUrl = r.rows[0]?.image || null;
-        await pool.query("UPDATE memories SET title=$1,date=$2,description=$3 WHERE id=$4", [title, date, description, id]);
+        await pool.query("UPDATE memories SET title=$1,date=$2,description=$3,mood=$4,location=$5,music=$6 WHERE id=$7", [title, date, description, mood || null, location || null, music || null, id]);
       }
-      io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: imageUrl });
+      io.emit("memoryUpdated", { id: parseInt(id), title, date, description, image: imageUrl, mood: mood || null, location: location || null, music: music || null });
       res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
@@ -523,6 +530,7 @@ app.put("/memories/:id", (req, res) => {
 app.delete("/memories/:id", async (req, res) => {
   try {
     await pool.query("DELETE FROM memories WHERE id=$1", [req.params.id]);
+    io.emit("memoryDeleted", { id: Number(req.params.id) });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

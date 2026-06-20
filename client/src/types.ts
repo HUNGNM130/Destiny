@@ -1,4 +1,17 @@
-export type Tab = 'photos' | 'videos' | 'timeline' | 'map' | 'letters' | 'stats' | 'camera' | 'gallery' | 'gift' | 'dashboard';
+export type Tab =
+  | 'photos'
+  | 'videos'
+  | 'timeline'
+  | 'map'
+  | 'letters'
+  | 'stats'
+  | 'camera'
+  | 'gallery'
+  | 'gift'
+  | 'dashboard'
+  | 'mood'
+  | 'music'
+  | 'calendar';
 
 export interface Memory {
   id: number;

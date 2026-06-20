@@ -13,6 +13,11 @@ import { TimelineTab } from './components/TimelineTab';
 import { LoveMapTab } from './components/LoveMapTab';
 import { LettersTab } from './components/LettersTab';
 import { StatsTab } from './components/StatsTab';
+import { MoodTab } from './components/MoodTab';
+import { MusicTab } from './components/MusicTab';
+import { CalendarTab } from './components/CalendarTab';
+import { GlobalSearch } from './components/GlobalSearch';
+import { OnThisDayBanner } from './components/OnThisDayBanner';
 import { AdminGate } from './components/AdminGate';
 import { MemoryFormModal } from './components/MemoryFormModal';
 import { VideoFormModal } from './components/VideoFormModal';
@@ -67,6 +72,7 @@ export default function App() {
   }, []);
 
   useEffect(() => { loadMemories(); }, [loadMemories]);
+  useEffect(() => { loadVideos(); }, [loadVideos]);
 
   useEffect(() => {
     if (tab === 'videos' || tab === 'stats') loadVideos();
@@ -111,6 +117,7 @@ export default function App() {
       <div className={`app-root ${introDone ? 'app-visible' : 'app-hidden'}`}>
         <Header memoryCount={memories.length} videoCount={videos.length} />
         <TabDock tab={tab} onTabChange={handleTabChange} />
+        <OnThisDayBanner memories={memories} onOpenMemory={setMemoryViewer} />
 
         {tab === 'photos' && (
           <PhotosTab
@@ -156,6 +163,17 @@ export default function App() {
           />
         )}
 
+
+        {tab === 'calendar' && (
+          <CalendarTab memories={memories} onOpenMemory={setMemoryViewer} />
+        )}
+
+        {tab === 'mood' && <MoodTab />}
+
+        {tab === 'music' && (
+          <MusicTab memories={memories} onOpenMemory={setMemoryViewer} />
+        )}
+
         {tab === 'timeline' && (
           <TimelineTab memories={memories} onOpenMemory={setMemoryViewer} />
         )}
@@ -196,7 +214,9 @@ export default function App() {
               <div className="memory-lightbox-body">
                 <span className="eyebrow">{new Date(memoryViewer.date).toLocaleDateString('vi-VN')}</span>
                 <h3>{memoryViewer.title}</h3>
+                {memoryViewer.mood && <p>{memoryViewer.mood} Mood hôm đó</p>}
                 {memoryViewer.location && <p>📍 {memoryViewer.location}</p>}
+                {memoryViewer.music && <p>🎵 {memoryViewer.music}</p>}
                 {memoryViewer.description && <p>{memoryViewer.description}</p>}
                 <button className="btn-add" onClick={() => { setMemoryViewer(null); setMemoryModal({ open: true, editing: memoryViewer }); }}>✏️ Chỉnh sửa</button>
               </div>
@@ -227,6 +247,14 @@ export default function App() {
             onClose={() => setPlayerModal({ open: false, src: '' })}
           />
         )}
+
+        <GlobalSearch
+          memories={memories}
+          videos={videos}
+          onOpenMemory={setMemoryViewer}
+          onOpenVideo={(src, title) => setPlayerModal({ open: true, src, title })}
+          onTabChange={handleTabChange}
+        />
       </div>
     </>
     </ToastProviderWithGlobal>

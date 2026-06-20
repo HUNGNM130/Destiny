@@ -12,7 +12,7 @@ interface Props {
 }
 
 type SortMode = 'newest' | 'oldest' | 'title';
-type ViewMode = 'scrapbook' | 'grid';
+type ViewMode = 'story' | 'scrapbook' | 'grid';
 
 const TAPE_COLORS = ['rgba(255,230,140,0.8)','rgba(200,200,255,0.7)','rgba(255,200,200,0.8)','rgba(180,255,200,0.7)'];
 const STICKERS = ['🌸', '💌', '✨', '🌙', '🫶', '🎀'];
@@ -39,6 +39,7 @@ function getInitialPos(item: Memory, index: number, cols: number, containerWidth
 
 export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefresh }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<Record<string, { x: number; y: number; rotate: number }>>({});
   const draggableRef = useRef<Set<string>>(new Set());
   const dragStateRef = useRef<{ card: HTMLElement; id: string; startX: number; startY: number; origX: number; origY: number; moved: boolean; } | null>(null);
@@ -46,13 +47,14 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
   const [containerWidth, setContainerWidth] = useState(window.innerWidth);
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
-  const [viewMode, setViewMode] = useState<ViewMode>('scrapbook');
+  const [viewMode, setViewMode] = useState<ViewMode>('story');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [favorites, setFavorites] = useState<number[]>(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
   });
   const [viewer, setViewer] = useState<Memory | null>(null);
   const [slideshow, setSlideshow] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const cols = Math.max(1, Math.floor((containerWidth - 40) / (viewMode === 'grid' ? 250 : 240)));
   const colsRef = useRef(cols);
@@ -70,6 +72,25 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
         return sortMode === 'newest' ? db - da : da - db;
       });
   }, [memories, query, sortMode, onlyFavorites, favorites]);
+
+  const visibleMemories = useMemo(() => filteredMemories.slice(0, visibleCount), [filteredMemories, visibleCount]);
+  const hasMoreMemories = visibleCount < filteredMemories.length;
+
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [query, sortMode, onlyFavorites, viewMode]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setVisibleCount(count => Math.min(count + 20, filteredMemories.length));
+      }
+    }, { rootMargin: '500px 0px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filteredMemories.length]);
 
   const stats = useMemo(() => {
     const withImage = memories.filter(m => m.image).length;
@@ -222,21 +243,22 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
   useEffect(() => {
     const container = containerRef.current;
     if (!container || loading) return;
+    if (viewMode === 'story') { container.innerHTML = ''; return; }
 
     container.innerHTML = '';
     positionsRef.current = {};
     container.classList.toggle('grid-view', viewMode === 'grid');
     container.classList.toggle('scrapbook-view', viewMode === 'scrapbook');
 
-    if (filteredMemories.length === 0) {
+    if (visibleMemories.length === 0) {
       container.innerHTML = `<div class="empty-state"><span class="big-heart">💌</span><h2>Không tìm thấy kỷ niệm</h2><p>Thử đổi bộ lọc hoặc thêm khoảnh khắc mới nhé ♥</p></div>`;
       return;
     }
 
-    const rows = Math.ceil(filteredMemories.length / cols);
+    const rows = Math.ceil(visibleMemories.length / cols);
     container.style.minHeight = viewMode === 'grid' ? 'auto' : (rows * 380 + 100) + 'px';
 
-    filteredMemories.forEach((memory, index) => {
+    visibleMemories.forEach((memory, index) => {
       const pos = getInitialPos(memory, index, colsRef.current, containerWidth);
       positionsRef.current[String(memory.id)] = pos;
 
@@ -301,7 +323,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
         }, 500);
       });
     });
-  }, [filteredMemories, loading, viewMode, favorites, containerWidth]);
+  }, [visibleMemories, loading, viewMode, favorites, containerWidth, cols]);
 
   return (
     <div id="pagePhotos">
@@ -335,11 +357,50 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
           <option value="title">Theo tên</option>
         </select>
         <button className={`chip-toggle ${onlyFavorites ? 'active' : ''}`} onClick={() => setOnlyFavorites(v => !v)}>♥ Yêu thích</button>
-        <button className={`chip-toggle ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode(v => v === 'scrapbook' ? 'grid' : 'scrapbook')}>{viewMode === 'grid' ? 'Lưới gọn' : 'Scrapbook'}</button>
+        <button className={`chip-toggle ${viewMode === 'story' ? 'active' : ''}`} onClick={() => setViewMode('story')}>🌊 Story</button>
+        <button className={`chip-toggle ${viewMode === 'scrapbook' ? 'active' : ''}`} onClick={() => setViewMode('scrapbook')}>Scrapbook</button>
+        <button className={`chip-toggle ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}>Lưới gọn</button>
       </div>
 
-      {loading && <div className="loading">đang tải những kỷ niệm... ♥</div>}
-      <div id="memoryContainer" ref={containerRef} />
+      {loading ? (
+        <div className="skeleton-grid" aria-label="Đang tải kỷ niệm">
+          {Array.from({ length: 6 }).map((_, i) => <div className="skeleton-card" key={i}><span /><b /><p /><p /></div>)}
+        </div>
+      ) : (
+        <>
+          {viewMode === 'story' && (
+            filteredMemories.length === 0 ? (
+              <div className="empty-state"><span className="big-heart">💌</span><h2>Không tìm thấy kỷ niệm</h2><p>Thử đổi bộ lọc hoặc thêm khoảnh khắc mới nhé ♥</p></div>
+            ) : (
+              <div className="story-feed">
+                {visibleMemories.map((memory, index) => (
+                  <article key={memory.id} className={`story-memory-card ${index % 2 ? 'reverse' : ''}`} style={{ ['--story-depth' as string]: `${(index % 5) - 2}` }}>
+                    <button className="story-photo-panel" onClick={() => setViewer(memory)}>
+                      {memory.image ? <img src={memory.image} alt={memory.title} loading="lazy" /> : <span className="story-no-photo">♥</span>}
+                    </button>
+                    <div className="story-copy-panel">
+                      <span className="eyebrow">Chương {index + 1} · {new Date(memory.date).toLocaleDateString('vi-VN')}</span>
+                      <h3>{memory.title}</h3>
+                      {memory.location && <p className="story-meta">📍 {memory.location}</p>}
+                      {memory.music && <p className="story-meta">🎵 {memory.music}</p>}
+                      {memory.description && <p>{memory.description}</p>}
+                      <div className="story-actions">
+                        <button className="btn-search" onClick={() => toggleFavorite(memory.id)}>{favorites.includes(memory.id) ? '♥ Đã yêu thích' : '♡ Yêu thích'}</button>
+                        <button className="btn-search" onClick={() => onEdit(memory)}>✏️ Sửa</button>
+                        <button className="btn-search danger" onClick={() => onDelete(memory.id)}>🗑 Xoá</button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )
+          )}
+          <div id="memoryContainer" ref={containerRef} style={{ display: viewMode === 'story' ? 'none' : undefined }} />
+          <div ref={sentinelRef} className="infinite-sentinel">
+            {hasMoreMemories ? 'Đang mở thêm kỷ niệm...' : filteredMemories.length > 0 ? 'Đã xem hết kỷ niệm rồi ♥' : ''}
+          </div>
+        </>
+      )}
 
       {viewer && (
         <div className="memory-lightbox" onClick={() => { setViewer(null); setSlideshow(false); }}>

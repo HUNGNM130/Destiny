@@ -3,6 +3,9 @@ import React, { useEffect, useState } from 'react';
 const THEMES = [
   { id: 'romantic', label: 'Romantic', icon: '🌹' },
   { id: 'valentine', label: 'Valentine', icon: '💘' },
+  { id: 'sakura', label: 'Sakura', icon: '🌸' },
+  { id: 'autumn', label: 'Autumn', icon: '🍂' },
+  { id: 'ocean', label: 'Ocean', icon: '🌊' },
   { id: 'noel', label: 'Noel', icon: '🎄' },
   { id: 'rain', label: 'Mưa buồn', icon: '🌧️' },
   { id: 'pastel', label: 'Pastel', icon: '🫧' },
