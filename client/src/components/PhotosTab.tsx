@@ -154,7 +154,16 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     draggableRef.current.add(id);
     const card = containerRef.current?.querySelector(`.memory-card[data-id="${id}"]`) as HTMLElement;
     if (!card) return;
-    card.classList.add('move-mode');
+
+    // Sticker peel animation before entering move mode
+    card.style.zIndex = '200';
+    card.classList.add('sticker-peeling');
+    setTimeout(() => {
+      card.classList.remove('sticker-peeling');
+      card.classList.add('move-mode');
+      card.classList.add('sticker-peeled');
+    }, 520);
+
     const btn = card.querySelector('.move-btn') as HTMLButtonElement;
     if (btn) { btn.textContent = '✅ Xong'; btn.onclick = () => disableMove(id); }
   };
@@ -163,8 +172,15 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
     draggableRef.current.delete(id);
     const card = containerRef.current?.querySelector(`.memory-card[data-id="${id}"]`) as HTMLElement;
     if (!card) return;
-    card.classList.remove('move-mode');
-    card.style.zIndex = '1';
+
+    // Sticker re-stick animation
+    card.classList.remove('move-mode', 'sticker-peeled');
+    card.classList.add('sticker-resticking');
+    setTimeout(() => {
+      card.classList.remove('sticker-resticking');
+      card.style.zIndex = '1';
+    }, 400);
+
     const btn = card.querySelector('.move-btn') as HTMLButtonElement;
     if (btn) { btn.textContent = '📌 Di chuyển'; btn.onclick = () => enableMove(id); }
     savePosition(id);
@@ -282,7 +298,7 @@ export function PhotosTab({ memories, loading, onAdd, onEdit, onDelete, onRefres
       card.className = `memory-card scrapbook-card ${isFav ? 'is-favorite' : ''} ${locked ? 'capsule-locked' : ''}`;
       card.dataset.id = String(memory.id);
       if (viewMode === 'scrapbook') {
-        card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;`;
+        card.style.cssText = `left:${pos.x}px;top:${pos.y}px;transform:rotate(${pos.rotate}deg);z-index:1;--card-rotate:${pos.rotate}deg;`;
       } else {
         card.style.cssText = '';
       }
