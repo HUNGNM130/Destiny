@@ -544,7 +544,7 @@ header::after {
   animation: stickerPeelCorner 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) reverse forwards;
 }
 
-
+.video-card {
   position: absolute; width: 240px;
   background: rgba(255,255,255,0.70); border-radius: 22px;
   border: 1px solid rgba(255,255,255,0.72);
