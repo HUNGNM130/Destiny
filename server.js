@@ -1140,7 +1140,15 @@ app.post("/youtube-mp3", async (req, res) => {
     message: "Tính năng tải YouTube MP3 đang tạm tắt trên bản deploy nhẹ Railway để tránh vượt giới hạn 500MB."
   });
 });
-
+// Health check: giữ server không ngủ + giữ Supabase không bị tạm dừng
+app.get("/healthz", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("ok");
+  } catch (err) {
+    res.status(500).send("db error");
+  }
+});
 // ─── SPA Fallback ─────────────────────────────────────────────────────────────
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
