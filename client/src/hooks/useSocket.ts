@@ -9,6 +9,7 @@ interface SocketCallbacks {
   onVideoAdded?: (v: Video) => void;
   onVideoDeleted?: (data: { id: number }) => void;
   onMemoryMoved?: (data: { id: number; x: number; y: number; rotate: number }) => void;
+  onConfigUpdated?: () => void;
   onVideoMoved?: (data: { id: number; x: number; y: number; rotate: number }) => void;
 }
 
@@ -33,6 +34,7 @@ export function useSocket(callbacks: SocketCallbacks) {
       socket.on('videoAdded',    (d) => cbRef.current.onVideoAdded?.(d as Video));
       socket.on('videoDeleted',  (d) => cbRef.current.onVideoDeleted?.(d as { id: number }));
       socket.on('memoryMoved',   (d) => cbRef.current.onMemoryMoved?.(d as { id: number; x: number; y: number; rotate: number }));
+      socket.on('giftConfigUpdated', () => cbRef.current.onConfigUpdated?.());
       socket.on('videoMoved',    (d) => cbRef.current.onVideoMoved?.(d as { id: number; x: number; y: number; rotate: number }));
       return socket;
     };

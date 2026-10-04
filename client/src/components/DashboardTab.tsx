@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { API_URL, BASE_URL, VIDEO_API_URL } from '../App';
+import { adminFetch } from '../utils/adminAuth';
 import { exportMemoriesToPDF } from '../utils/exportMemoriesPdf';
 import { toast } from './SweetAlert';
-import { applySiteStyleConfig, FONT_OPTIONS, SITE_STYLE_DEFAULTS } from '../utils/siteStyle';
+import { applySiteStyleConfig, FONT_OPTIONS, SITE_STYLE_DEFAULTS, FONT_SCALE_MIN, FONT_SCALE_MAX, parseHiddenTabs } from '../utils/siteStyle';
+import { TABS } from './TabDock';
 import type { Memory } from '../types';
 
 interface GiftConfig {
@@ -26,6 +28,8 @@ interface GiftConfig {
   siteFontBody: string;
   siteFontDisplay: string;
   siteFontHand: string;
+  siteFontScale: string;
+  siteHiddenTabs: string;
   passcode: string;
   passcodeTitle: string;
   passcodeSubtitle: string;
@@ -68,6 +72,8 @@ const defaultConfig: GiftConfig = {
   siteFontBody: SITE_STYLE_DEFAULTS.siteFontBody,
   siteFontDisplay: SITE_STYLE_DEFAULTS.siteFontDisplay,
   siteFontHand: SITE_STYLE_DEFAULTS.siteFontHand,
+  siteFontScale: SITE_STYLE_DEFAULTS.siteFontScale,
+  siteHiddenTabs: SITE_STYLE_DEFAULTS.siteHiddenTabs,
   passcode: '0308',
   passcodeTitle: 'Nhập mật khẩu',
   passcodeSubtitle: 'Mở món quà đặc biệt',
@@ -226,7 +232,7 @@ export function DashboardTab() {
         morphTexts: JSON.stringify(morphTextsArr),
         sphereImages: JSON.stringify(sphereImagesArr),
       };
-      const res = await fetch(`${BASE_URL}/api/gift-config`, {
+      const res = await adminFetch(`${BASE_URL}/api/gift-config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -249,7 +255,7 @@ export function DashboardTab() {
     const fd = new FormData();
     fd.append('image', file);
     try {
-      const res = await fetch(`${BASE_URL}/api/gift-upload-image`, { method: 'POST', body: fd });
+      const res = await adminFetch(`${BASE_URL}/api/gift-upload-image`, { method: 'POST', body: fd });
       const data = await res.json();
       if (data.url) {
         const url = data.url as string;
@@ -277,7 +283,7 @@ export function DashboardTab() {
   const loadMediaAudit = async () => {
     setAuditLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/admin/media-audit`);
+      const res = await adminFetch(`${BASE_URL}/api/admin/media-audit`);
       const data = await res.json();
       setAuditItems(data.items || []);
     } catch {
@@ -304,7 +310,7 @@ export function DashboardTab() {
   };
 
   const loadAdminLetters = async () => {
-    const res = await fetch(`${BASE_URL}/api/admin/letters`);
+    const res = await adminFetch(`${BASE_URL}/api/admin/letters`);
     const data = await res.json();
     setAdminLetters(Array.isArray(data) ? data : []);
   };
@@ -375,7 +381,7 @@ export function DashboardTab() {
   };
 
   const saveLetterQuick = async (letter: AdminLetterItem) => {
-    const res = await fetch(`${BASE_URL}/api/letters/${letter.id}`, {
+    const res = await adminFetch(`${BASE_URL}/api/letters/${letter.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -422,7 +428,7 @@ export function DashboardTab() {
   const clearMemoryImage = async (id: number) => {
     const ok = window.confirm('Xóa link ảnh khỏi kỷ niệm này? Nội dung kỷ niệm vẫn được giữ.');
     if (!ok) return;
-    const res = await fetch(`${BASE_URL}/api/admin/memories/${id}/image`, { method: 'DELETE' });
+    const res = await adminFetch(`${BASE_URL}/api/admin/memories/${id}/image`, { method: 'DELETE' });
     if (res.ok) {
       toast('Đã xóa link ảnh lỗi khỏi DB', 'success');
       loadMediaAudit();
@@ -484,6 +490,32 @@ export function DashboardTab() {
     { id: 'goodnight', emoji: '🌙', label: 'Good night', count: adminGoodnight.length },
   ];
 
+  const hiddenTabList = parseHiddenTabs(cfg.siteHiddenTabs);
+  const toggleTab = (id: string) => {
+    const next = hiddenTabList.includes(id) ? hiddenTabList.filter(x => x !== id) : [...hiddenTabList, id];
+    if (TABS.length - next.length < 1) { toast('Phải giữ lại ít nhất 1 chức năng', 'error'); return; }
+    field('siteHiddenTabs', next.join(','));
+  };
+  const fontScale = Math.max(FONT_SCALE_MIN, Math.min(FONT_SCALE_MAX, Number(cfg.siteFontScale) || 1));
+
+  const downloadBackup = async () => {
+    try {
+      const res = await adminFetch(`${BASE_URL}/api/admin/backup`);
+      if (!res.ok) { toast('Không tải được backup (hết phiên? hãy nhập lại PIN)', 'error'); return; }
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `love-diary-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+      toast('Đã tải backup 💾', 'success');
+    } catch {
+      toast('Lỗi kết nối khi tải backup', 'error');
+    }
+  };
+
   const q = recordQuery.trim().toLowerCase();
 
   return (
@@ -497,6 +529,7 @@ export function DashboardTab() {
         </div>
         <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
           <button className="db-btn-outline" onClick={exportPdf}>📤 Xuất PDF</button>
+          <button className="db-btn-outline" onClick={downloadBackup}>💾 Tải backup</button>
           <a
             href={`${BASE_URL}/mon-qua-nho/`}
             target="_blank"
@@ -789,7 +822,31 @@ export function DashboardTab() {
               <select className="db-input" value={cfg.siteFontHand} onChange={e => field('siteFontHand', e.target.value)}>
                 {FONT_OPTIONS.map(font => <option key={font.value} value={font.value}>{font.label}</option>)}
               </select>
-              <button className="db-btn-outline" onClick={() => setCfg(c => ({ ...c, ...SITE_STYLE_DEFAULTS }))}>↩️ Về mặc định</button>
+              <label className="db-label">Cỡ chữ toàn website ({Math.round(fontScale * 100)}%)</label>
+              <input type="range" min={FONT_SCALE_MIN} max={FONT_SCALE_MAX} step="0.05" value={fontScale} onChange={e => field('siteFontScale', e.target.value)} style={{ width:'100%', accentColor:'var(--rose)' }} />
+              <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', margin:'8px 0' }}>
+                {([['Nhỏ', '0.9'], ['Vừa', '1'], ['Lớn', '1.15'], ['Rất lớn', '1.3']] as [string, string][]).map(([label, v]) => (
+                  <button key={v} className="db-btn-outline" style={Number(cfg.siteFontScale) === Number(v) ? { borderColor: 'var(--rose)', fontWeight: 700 } : undefined} onClick={() => field('siteFontScale', v)}>{label}</button>
+                ))}
+              </div>
+              <div className="db-style-preview" style={{ fontFamily: cfg.siteFontBody, color: cfg.siteTextColor, fontSize: `${fontScale}rem` }}>
+                Chữ mẫu: Hôm nay em đẹp lắm 💕 — bấm Lưu để áp dụng cho cả website.
+              </div>
+              <button className="db-btn-outline" onClick={() => setCfg(c => ({ ...c, ...SITE_STYLE_DEFAULTS, siteHiddenTabs: c.siteHiddenTabs }))}>↩️ Về mặc định</button>
+            </div>
+
+            <div className="db-card db-card-wide">
+              <div className="db-card-title">🧩 Bật / tắt chức năng của website</div>
+              <small style={{ display:'block', marginBottom:'8px', opacity:0.75 }}>Chức năng bị tắt sẽ biến mất khỏi thanh menu. Dữ liệu vẫn được giữ nguyên, bật lại là thấy.</small>
+              {TABS.map(t => (
+                <div className="db-toggle-row" key={t.id}>
+                  <span className="db-toggle-label">{t.emoji} {t.label}</span>
+                  <div className={`db-toggle ${hiddenTabList.includes(t.id) ? '' : 'on'}`} onClick={() => toggleTab(t.id)}>
+                    <div className="db-toggle-knob" />
+                  </div>
+                </div>
+              ))}
+              <button className="db-btn-outline" onClick={() => field('siteHiddenTabs', '')}>👁️ Bật lại tất cả</button>
             </div>
           </div>
         )}

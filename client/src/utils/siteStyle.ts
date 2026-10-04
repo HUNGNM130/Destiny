@@ -11,6 +11,8 @@ export interface SiteStyleConfig {
   enableSiteAurora?: string;
   enableCardSpotlight?: string;
   siteMotionIntensity?: string;
+  siteFontScale?: string;   // 0.8 – 1.5 (1 = mặc định)
+  siteHiddenTabs?: string;  // id các tab bị ẩn, cách nhau bằng dấu phẩy
 }
 
 export const FONT_OPTIONS = [
@@ -21,6 +23,10 @@ export const FONT_OPTIONS = [
   { label: 'Pacifico — ngọt kiểu quà tặng', value: "'Pacifico', cursive" },
   { label: 'Quicksand — tròn, mềm', value: "'Quicksand', system-ui, sans-serif" },
   { label: 'System UI — nhanh, rõ', value: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+  { label: 'Be Vietnam Pro — chuẩn tiếng Việt, rõ', value: "'Be Vietnam Pro', system-ui, sans-serif" },
+  { label: 'Nunito — tròn, thân thiện', value: "'Nunito', system-ui, sans-serif" },
+  { label: 'Lora — serif dễ đọc', value: "'Lora', Georgia, serif" },
+  { label: 'Cormorant Garamond — thanh lịch', value: "'Cormorant Garamond', Georgia, serif" },
   { label: 'Georgia — cổ điển', value: 'Georgia, "Times New Roman", serif' },
 ];
 
@@ -37,7 +43,16 @@ export const SITE_STYLE_DEFAULTS: Required<SiteStyleConfig> = {
   enableSiteAurora: 'true',
   enableCardSpotlight: 'true',
   siteMotionIntensity: '1',
+  siteFontScale: '1',
+  siteHiddenTabs: '',
 };
+
+export const FONT_SCALE_MIN = 0.8;
+export const FONT_SCALE_MAX = 1.5;
+
+export function parseHiddenTabs(value?: string): string[] {
+  return (value || '').split(',').map(v => v.trim()).filter(Boolean);
+}
 
 function isColor(value?: string) {
   return typeof value === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
@@ -75,6 +90,9 @@ export function applySiteStyleConfig(config: SiteStyleConfig = {}) {
   root.dataset.cardSpotlight = cfg.enableCardSpotlight === 'false' ? 'off' : 'on';
   const motion = Math.max(0, Math.min(2, Number(cfg.siteMotionIntensity || 1) || 1));
   const safeMotion = Math.max(0.2, motion);
+  const scale = Math.max(FONT_SCALE_MIN, Math.min(FONT_SCALE_MAX, Number(cfg.siteFontScale) || 1));
+  // Toàn bộ CSS dùng đơn vị rem nên đổi cỡ chữ gốc là cả web đổi theo
+  root.style.fontSize = `${(scale * 100).toFixed(0)}%`;
   root.style.setProperty('--motion-scale', String(motion));
   root.style.setProperty('--motion-duration-slow', `${(16 / safeMotion).toFixed(2)}s`);
   root.style.setProperty('--motion-duration-fast', `${(10 / safeMotion).toFixed(2)}s`);

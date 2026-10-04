@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { CinematicIntro } from './components/CinematicIntro';
 import { Header, type SiteCopyConfig } from './components/Header';
-import { TabDock } from './components/TabDock';
+import { TabDock, TABS } from './components/TabDock';
 import { ToastProviderWithGlobal } from './components/SweetAlert';
 import { PhotosTab } from './components/PhotosTab';
 import { VideosTab } from './components/VideosTab';
@@ -30,7 +30,7 @@ import { VideoPlayerModal } from './components/VideoPlayerModal';
 import { useSocket } from './hooks/useSocket';
 import { useDynamicBackground } from './hooks/useDynamicBackground';
 import { useReminderNotifications } from './hooks/useReminderNotifications';
-import { applySiteStyleConfig } from './utils/siteStyle';
+import { applySiteStyleConfig, parseHiddenTabs } from './utils/siteStyle';
 import type { Memory, Video, Tab } from './types';
 import { sweetConfirm } from './components/SweetAlert';
 import { isCapsuleLocked, countdownTo } from './utils/memoryFeatures';
@@ -54,6 +54,7 @@ export default function App() {
     siteGlobalNotice: '',
     loveStartDate: '2025-09-20',
   });
+  const [hiddenTabs, setHiddenTabs] = useState<string[]>([]);
   const [loadingMemories, setLoadingMemories] = useState(false);
   const [loadingVideos, setLoadingVideos] = useState(false);
 
@@ -72,6 +73,7 @@ export default function App() {
         const res = await fetch(`${BASE_URL}/api/gift-config`);
         const cfg = await res.json();
         applySiteStyleConfig(cfg);
+        setHiddenTabs(parseHiddenTabs(cfg.siteHiddenTabs));
         setSiteCopy({
           siteHeroEyebrow: cfg.siteHeroEyebrow || 'Private memory system',
           siteHeroTitle: cfg.siteHeroTitle || 'Our Love Diary',
@@ -85,6 +87,7 @@ export default function App() {
     const onStyleUpdated = (event: Event) => {
       const detail = (event as CustomEvent).detail || {};
       applySiteStyleConfig(detail);
+      if (detail.siteHiddenTabs !== undefined) setHiddenTabs(parseHiddenTabs(detail.siteHiddenTabs));
       setSiteCopy(prev => ({ ...prev,
         siteHeroEyebrow: detail.siteHeroEyebrow ?? prev.siteHeroEyebrow,
         siteHeroTitle: detail.siteHeroTitle ?? prev.siteHeroTitle,
@@ -94,7 +97,11 @@ export default function App() {
       }));
     };
     window.addEventListener('loveDiaryStyleUpdated', onStyleUpdated);
-    return () => window.removeEventListener('loveDiaryStyleUpdated', onStyleUpdated);
+    window.addEventListener('loveDiaryConfigRefetch', applyFromServer);
+    return () => {
+      window.removeEventListener('loveDiaryStyleUpdated', onStyleUpdated);
+      window.removeEventListener('loveDiaryConfigRefetch', applyFromServer);
+    };
   }, []);
 
   const loadMemories = useCallback(async (filters: Record<string, string> = {}) => {
@@ -126,6 +133,7 @@ export default function App() {
   }, [tab, loadVideos]);
 
   useSocket({
+    onConfigUpdated: () => window.dispatchEvent(new Event('loveDiaryConfigRefetch')),
     onMemoryAdded: (m) => setMemories(prev => {
       if (prev.find(x => x.id === m.id)) return prev;
       return [m, ...prev];
@@ -153,6 +161,16 @@ export default function App() {
     ),
   });
 
+  const show = (id: Tab) => tab === id && !hiddenTabs.includes(id);
+
+  // Nếu tab đang mở bị admin ẩn thì chuyển sang tab đầu tiên còn hiển thị
+  useEffect(() => {
+    if (tab !== 'dashboard' && hiddenTabs.includes(tab)) {
+      const next = TABS.find(t => !hiddenTabs.includes(t.id));
+      if (next) setTab(next.id);
+    }
+  }, [hiddenTabs, tab]);
+
   const handleTabChange = (newTab: Tab) => {
     setTab(newTab);
   };
@@ -165,10 +183,10 @@ export default function App() {
         <div className="rb-ambient" aria-hidden="true"><span /><span /><span /></div>
         <Header memoryCount={memories.length} videoCount={videos.length} siteCopy={siteCopy} />
         <RandomMemoryFlip memories={memories} onOpenMemory={setMemoryViewer} />
-        <TabDock tab={tab} onTabChange={handleTabChange} />
+        <TabDock tab={tab} onTabChange={handleTabChange} hiddenTabs={hiddenTabs} />
         <OnThisDayBanner memories={memories} onOpenMemory={setMemoryViewer} />
 
-        {tab === 'photos' && (
+        {show('photos') && (
           <PhotosTab
             memories={memories}
             loading={loadingMemories}
@@ -190,7 +208,7 @@ export default function App() {
           />
         )}
 
-        {tab === 'videos' && (
+        {show('videos') && (
           <VideosTab
             videos={videos}
             loading={loadingVideos}
@@ -213,50 +231,50 @@ export default function App() {
         )}
 
 
-        {tab === 'calendar' && (
+        {show('calendar') && (
           <CalendarTab memories={memories} onOpenMemory={setMemoryViewer} />
         )}
 
-        {tab === 'diary' && <DiaryTab />}
+        {show('diary') && <DiaryTab />}
 
-        {tab === 'bucket' && <BucketListTab onRefreshMemories={loadMemories} />}
+        {show('bucket') && <BucketListTab onRefreshMemories={loadMemories} />}
 
-        {tab === 'night' && <GoodNightTab />}
+        {show('night') && <GoodNightTab />}
 
-        {tab === 'collage' && <CollageTab memories={memories} />}
+        {show('collage') && <CollageTab memories={memories} />}
 
-        {tab === 'mood' && <MoodTab />}
+        {show('mood') && <MoodTab />}
 
-        {tab === 'music' && (
+        {show('music') && (
           <MusicTab memories={memories} onOpenMemory={setMemoryViewer} />
         )}
 
-        {tab === 'timeline' && (
+        {show('timeline') && (
           <TimelineTab memories={memories} onOpenMemory={setMemoryViewer} />
         )}
 
-        {tab === 'map' && (
+        {show('map') && (
           <LoveMapTab memories={memories} onOpenMemory={setMemoryViewer} />
         )}
 
-        {tab === 'letters' && <LettersTab />}
+        {show('letters') && <LettersTab />}
 
-        {tab === 'stats' && (
+        {show('stats') && (
           <StatsTab memories={memories} videos={videos} onOpenMemory={setMemoryViewer} />
         )}
 
-        {tab === 'camera' && (
+        {show('camera') && (
           <CameraTab
             active={tab === 'camera'}
             onSaved={() => { setTab('photos'); loadMemories(); }}
           />
         )}
 
-        {tab === 'gallery' && (
+        {show('gallery') && (
           <GalleryTab memories={memories} />
         )}
 
-        {tab === 'gift' && <GiftTab />}
+        {show('gift') && <GiftTab />}
 
         {tab === 'dashboard' && adminUnlocked && <DashboardTab />}
 

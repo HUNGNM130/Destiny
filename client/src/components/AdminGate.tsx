@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BASE_URL } from '../App';
+import { setAdminToken } from '../utils/adminAuth';
 
 interface Props {
   onUnlocked: () => void;
@@ -28,6 +29,7 @@ export function AdminGate({ onUnlocked }: Props) {
       });
       const data = await res.json();
       if (data.ok) {
+        if (data.token) setAdminToken(data.token);
         setShowModal(false);
         onUnlocked();
       } else {

@@ -1,9 +1,9 @@
 import React, { useCallback, useRef, useEffect } from 'react';
 import type { Tab } from '../types';
 
-interface Props { tab: Tab; onTabChange: (t: Tab) => void; }
+interface Props { tab: Tab; onTabChange: (t: Tab) => void; hiddenTabs?: string[]; }
 
-const TABS: { id: Tab; emoji: string; label: string }[] = [
+export const TABS: { id: Tab; emoji: string; label: string }[] = [
   { id: 'photos',    emoji: '📷', label: 'Kỷ niệm' },
   { id: 'videos',    emoji: '🎬', label: 'Video'   },
   { id: 'calendar',  emoji: '📅', label: 'Lịch' },
@@ -26,7 +26,8 @@ const BASE_SIZE   = 52;   // px — resting item size
 const MAX_SCALE   = 1.65; // magnification peak
 const DISTANCE    = 130;  // px — influence radius
 
-export function TabDock({ tab, onTabChange }: Props) {
+export function TabDock({ tab, onTabChange, hiddenTabs = [] }: Props) {
+  const visibleTabs = TABS.filter(t => !hiddenTabs.includes(t.id));
   const dockRef  = useRef<HTMLDivElement>(null);
   const mouseX   = useRef<number>(Infinity);
   const rafRef   = useRef<number | null>(null);
@@ -56,6 +57,7 @@ export function TabDock({ tab, onTabChange }: Props) {
       const midX = rect.left + rect.width / 2;
       const target = getTargetSize(midX);
 
+      if (!springs.current[i]) springs.current[i] = { current: BASE_SIZE, target: BASE_SIZE, vel: 0 };
       const sp = springs.current[i];
       sp.target = target;
 
@@ -102,7 +104,7 @@ export function TabDock({ tab, onTabChange }: Props) {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <div
             key={t.id}
             className={`jd-item ${tab === t.id ? 'active' : ''}`}

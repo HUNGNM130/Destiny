@@ -19,5 +19,7 @@ services:
         sync: false
       - key: ADMIN_PIN
         sync: false          # Mã PIN bí mật để vào Dashboard (mặc định: 1234)
+      - key: ADMIN_TOKEN_SECRET
+        generateValue: true   # Render tự sinh chuỗi bí mật để ký token admin
       - key: FFMPEG_SKIP_DOWNLOAD
         value: "true"

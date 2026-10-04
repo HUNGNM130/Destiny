@@ -10,6 +10,7 @@ const { Pool }   = require("pg");
 const { Server } = require("socket.io");
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const crypto     = require("crypto");
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key:    process.env.CLOUDINARY_API_KEY,
@@ -20,6 +21,42 @@ const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, { cors: { origin: "*" } });
 const PORT   = process.env.PORT || 3000;
+
+// ─── Admin auth (token ký HMAC, không cần thư viện ngoài) ─────────────────────
+// Sau khi nhập đúng PIN, server trả về một token có hạn 12 giờ.
+// Client gửi token trong header "Authorization: Bearer <token>" cho các API admin.
+const ADMIN_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+const adminSecret = () =>
+  process.env.ADMIN_TOKEN_SECRET ||
+  crypto.createHash("sha256")
+    .update("love-diary|" + (process.env.ADMIN_PIN || "1234") + "|" + (process.env.CLOUDINARY_API_SECRET || ""))
+    .digest("hex");
+
+function signAdminToken() {
+  const payload = Buffer.from(JSON.stringify({ exp: Date.now() + ADMIN_TOKEN_TTL_MS })).toString("base64url");
+  const sig = crypto.createHmac("sha256", adminSecret()).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
+}
+
+function verifyAdminToken(token) {
+  if (!token || typeof token !== "string") return false;
+  const [payload, sig] = token.split(".");
+  if (!payload || !sig) return false;
+  const expected = crypto.createHmac("sha256", adminSecret()).update(payload).digest("base64url");
+  const a = Buffer.from(sig), b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+  try {
+    const { exp } = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return typeof exp === "number" && exp > Date.now();
+  } catch { return false; }
+}
+
+function requireAdmin(req, res, next) {
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (verifyAdminToken(token)) return next();
+  res.status(401).json({ error: "Cần đăng nhập admin" });
+}
 
 // ─── Database ─────────────────────────────────────────────────────────────────
 const pool = new Pool({
@@ -82,6 +119,9 @@ const pool = new Pool({
         created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    // Video giờ lưu trên Cloudinary: filename chứa URL đầy đủ, public_id dùng để xóa
+    await pool.query(`ALTER TABLE videos ALTER COLUMN filename TYPE TEXT`).catch(() => {});
+    await pool.query(`ALTER TABLE videos ADD COLUMN IF NOT EXISTS public_id TEXT DEFAULT NULL`).catch(() => {});
 
 
     await pool.query(`
@@ -264,17 +304,21 @@ const imageStorage = new CloudinaryStorage({
   }),
 });
 
-const videoStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads-video/"),
-  filename:    (req, file, cb) =>
-    cb(null, Date.now() + "-" + Math.round(Math.random() * 1e9) + path.extname(file.originalname)),
+// Video lưu trên Cloudinary (Render free xóa ổ đĩa mỗi lần restart/deploy).
+// Gói Cloudinary free giới hạn ~100MB mỗi video.
+const videoStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async () => ({
+    folder:        "love-diary-videos",
+    resource_type: "video",
+  }),
 });
 
 // Gift images are stored in PostgreSQL as data URLs so they survive Railway redeploys.
 const giftImageStorage = multer.memoryStorage();
 
 const uploadImage      = multer({ storage: imageStorage });
-const uploadVideo      = multer({ storage: videoStorage });
+const uploadVideo      = multer({ storage: videoStorage, limits: { fileSize: 100 * 1024 * 1024 } });
 const uploadGiftImage  = multer({
   storage: giftImageStorage,
   limits: { fileSize: 8 * 1024 * 1024 },
@@ -325,7 +369,7 @@ app.post("/api/admin-verify", (req, res) => {
 
   if (pin === adminPin) {
     adminAttempts.delete(ip);
-    return res.json({ ok: true });
+    return res.json({ ok: true, token: signAdminToken() });
   }
 
   record.count += 1;
@@ -350,7 +394,7 @@ app.get("/api/gift-config", async (req, res) => {
 });
 
 // PUT /api/gift-config  → update key/value pairs (body: { key: value, ... })
-app.put("/api/gift-config", async (req, res) => {
+app.put("/api/gift-config", requireAdmin, async (req, res) => {
   try {
     const updates = req.body;
     for (const [k, v] of Object.entries(updates)) {
@@ -370,7 +414,7 @@ app.put("/api/gift-config", async (req, res) => {
 });
 
 // POST /api/gift-upload-image  → upload gift image into DB, returns stable URL
-app.post("/api/gift-upload-image", uploadGiftImage.single("image"), async (req, res) => {
+app.post("/api/gift-upload-image", requireAdmin, uploadGiftImage.single("image"), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file" });
   try {
     const mime = req.file.mimetype || "image/jpeg";
@@ -424,7 +468,7 @@ app.get("/api/gift-images/:id/data", async (req, res) => {
 });
 
 // DELETE /api/gift-images/:id  → delete DB image, or legacy file by filename
-app.delete("/api/gift-images/:id", async (req, res) => {
+app.delete("/api/gift-images/:id", requireAdmin, async (req, res) => {
   try {
     const maybeId = Number(req.params.id);
     if (Number.isInteger(maybeId)) {
@@ -523,7 +567,7 @@ async function checkImageStatus(image) {
   }
 }
 
-app.get("/api/admin/media-audit", async (req, res) => {
+app.get("/api/admin/media-audit", requireAdmin, async (req, res) => {
   try {
     const r = await pool.query("SELECT id,title,date,image FROM memories ORDER BY date DESC, id DESC");
     const items = [];
@@ -537,7 +581,7 @@ app.get("/api/admin/media-audit", async (req, res) => {
   }
 });
 
-app.delete("/api/admin/memories/:id/image", async (req, res) => {
+app.delete("/api/admin/memories/:id/image", requireAdmin, async (req, res) => {
   try {
     const r = await pool.query("UPDATE memories SET image=NULL WHERE id=$1 RETURNING *", [req.params.id]);
     if (!r.rowCount) return res.status(404).json({ error: "Not found" });
@@ -548,7 +592,7 @@ app.delete("/api/admin/memories/:id/image", async (req, res) => {
   }
 });
 
-app.patch("/api/admin/memories/:id/image", async (req, res) => {
+app.patch("/api/admin/memories/:id/image", requireAdmin, async (req, res) => {
   try {
     const { image } = req.body;
     const r = await pool.query("UPDATE memories SET image=$1 WHERE id=$2 RETURNING *", [image || null, req.params.id]);
@@ -835,7 +879,7 @@ function letterIsUnlocked(unlockAt) {
   return d.getTime() <= today.getTime();
 }
 
-app.get("/api/admin/letters", async (req, res) => {
+app.get("/api/admin/letters", requireAdmin, async (req, res) => {
   try {
     const r = await pool.query("SELECT * FROM love_letters ORDER BY unlock_at ASC, id DESC");
     res.json(r.rows);
@@ -879,7 +923,7 @@ app.delete("/api/letters/:id", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put("/api/letters/:id", async (req, res) => {
+app.put("/api/letters/:id", requireAdmin, async (req, res) => {
   try {
     const { title, unlock_at, message, cover_image } = req.body;
     if (!title || !unlock_at || !message) return res.status(400).json({ error: "Thiếu title, ngày mở khóa hoặc nội dung thư" });
@@ -913,7 +957,7 @@ app.patch("/api/goodnight-messages/:id", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get("/api/admin/backup", async (req, res) => {
+app.get("/api/admin/backup", requireAdmin, async (req, res) => {
   try {
     const [memories, videos, letters, gift, anniversaryEvents, diaryEntries, bucketItems, goodnightMessages] = await Promise.all([
       pool.query("SELECT * FROM memories ORDER BY date DESC, id DESC"),
@@ -1054,25 +1098,46 @@ app.patch("/memories/:id/position", async (req, res) => {
 });
 
 // ─── Videos ───────────────────────────────────────────────────────────────────
+// Video cũ (lưu local) có filename dạng "123-456.mp4"; video mới có filename là URL Cloudinary.
+function withVideoUrl(row) {
+  const f = row.filename || "";
+  return { ...row, url: /^https?:\/\//i.test(f) ? f : null };
+}
+
+async function removeVideoFile(row) {
+  if (!row) return;
+  try {
+    if (row.public_id) {
+      await cloudinary.uploader.destroy(row.public_id, { resource_type: "video" });
+    } else if (row.filename && !/^https?:\/\//i.test(row.filename)) {
+      const fp = path.join(__dirname, "uploads-video", row.filename);
+      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    }
+  } catch (err) {
+    console.error("removeVideoFile:", err.message);
+  }
+}
+
 app.get("/videos", async (req, res) => {
   try {
     const r = await pool.query("SELECT * FROM videos ORDER BY date DESC");
-    res.json(r.rows);
+    res.json(r.rows.map(withVideoUrl));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post("/videos", uploadVideo.single("video"), async (req, res) => {
   try {
     const { title, date, description } = req.body;
-    const filename = req.file?.filename;
+    const filename = req.file?.path;      // URL Cloudinary
+    const publicId = req.file?.filename;  // public_id Cloudinary
     if (!filename) return res.status(400).json({ error: "Chưa có file video" });
 
     const r = await pool.query(
-      "INSERT INTO videos (title,date,description,filename) VALUES ($1,$2,$3,$4) RETURNING id",
-      [title, date, description, filename]
+      "INSERT INTO videos (title,date,description,filename,public_id) VALUES ($1,$2,$3,$4,$5) RETURNING id",
+      [title, date, description, filename, publicId]
     );
     const id = r.rows[0].id;
-    const newVideo = { id, title, date, description, filename, pos_x: null, pos_y: null, pos_rotate: null };
+    const newVideo = withVideoUrl({ id, title, date, description, filename, public_id: publicId, pos_x: null, pos_y: null, pos_rotate: null });
     io.emit("videoAdded", newVideo);
     res.json({ success: true, id });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1084,14 +1149,10 @@ app.put("/videos/:id", uploadVideo.single("video"), async (req, res) => {
     const { id } = req.params;
 
     if (req.file) {
-      const r = await pool.query("SELECT filename FROM videos WHERE id=$1", [id]);
-      const oldFilename = r.rows[0]?.filename;
-      if (oldFilename) {
-        const fp = path.join(__dirname, "uploads-video", oldFilename);
-        if (fs.existsSync(fp)) fs.unlinkSync(fp);
-      }
-      await pool.query("UPDATE videos SET title=$1,date=$2,description=$3,filename=$4 WHERE id=$5",
-        [title, date, description, req.file.filename, id]);
+      const r = await pool.query("SELECT filename, public_id FROM videos WHERE id=$1", [id]);
+      await removeVideoFile(r.rows[0]);
+      await pool.query("UPDATE videos SET title=$1,date=$2,description=$3,filename=$4,public_id=$5 WHERE id=$6",
+        [title, date, description, req.file.path, req.file.filename, id]);
     } else {
       await pool.query("UPDATE videos SET title=$1,date=$2,description=$3 WHERE id=$4", [title, date, description, id]);
     }
@@ -1101,12 +1162,8 @@ app.put("/videos/:id", uploadVideo.single("video"), async (req, res) => {
 
 app.delete("/videos/:id", async (req, res) => {
   try {
-    const r = await pool.query("SELECT filename FROM videos WHERE id=$1", [req.params.id]);
-    const oldFilename = r.rows[0]?.filename;
-    if (oldFilename) {
-      const fp = path.join(__dirname, "uploads-video", oldFilename);
-      if (fs.existsSync(fp)) fs.unlinkSync(fp);
-    }
+    const r = await pool.query("SELECT filename, public_id FROM videos WHERE id=$1", [req.params.id]);
+    await removeVideoFile(r.rows[0]);
     await pool.query("DELETE FROM videos WHERE id=$1", [req.params.id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1139,6 +1196,16 @@ app.post("/youtube-mp3", async (req, res) => {
     success: false,
     message: "Tính năng tải YouTube MP3 đang tạm tắt trên bản deploy nhẹ Railway để tránh vượt giới hạn 500MB."
   });
+});
+
+// Health check: dùng cho UptimeRobot (giữ Render không ngủ + giữ Supabase hoạt động)
+app.get("/healthz", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.status(200).send("ok");
+  } catch (err) {
+    res.status(500).send("db error");
+  }
 });
 
 // ─── SPA Fallback ─────────────────────────────────────────────────────────────
