@@ -2962,3 +2962,36 @@ html[data-card-spotlight="on"] .db-record-card:hover::after { opacity: .75; }
 @media (prefers-reduced-motion: reduce) {
   .rb-ambient span, .header-orb { animation: none !important; }
 }
+
+/* ── Game tab (Mushies) ── */
+.game-tab {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px 12px 24px;
+}
+.game-tab-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.game-tab-mini {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.game-tab-frame {
+  display: block;
+  width: 100%;
+  height: min(78vh, 760px);
+  border: 0;
+  border-radius: 18px;
+  background: #f5e8de;
+  box-shadow: 0 8px 28px rgba(201, 123, 138, 0.3);
+}

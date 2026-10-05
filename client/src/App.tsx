@@ -20,6 +20,7 @@ import { DiaryTab } from './components/DiaryTab';
 import { BucketListTab } from './components/BucketListTab';
 import { GoodNightTab } from './components/GoodNightTab';
 import { CollageTab } from './components/CollageTab';
+import { GameTab } from './components/GameTab';
 import { RandomMemoryFlip } from './components/RandomMemoryFlip';
 import { GlobalSearch } from './components/GlobalSearch';
 import { OnThisDayBanner } from './components/OnThisDayBanner';
@@ -275,6 +276,8 @@ export default function App() {
         )}
 
         {show('gift') && <GiftTab />}
+
+        {show('game') && <GameTab />}
 
         {tab === 'dashboard' && adminUnlocked && <DashboardTab />}
 
