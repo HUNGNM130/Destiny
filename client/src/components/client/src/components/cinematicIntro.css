@@ -1,0 +1,8 @@
+/* Keep cinematic intro look; most styling already exists in global.css.
+   This file exists to ensure the component compiles even if global.css changes. */
+.cinematic-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+}
+

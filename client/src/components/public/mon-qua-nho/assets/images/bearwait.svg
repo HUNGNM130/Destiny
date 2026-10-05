@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 150" width="120" height="150">
+  <defs>
+    <linearGradient id="bearBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#c8956a"/>
+      <stop offset="100%" style="stop-color:#a06040"/>
+    </linearGradient>
+  </defs>
+  <!-- Ears -->
+  <circle cx="35" cy="38" r="18" fill="url(#bearBody)"/>
+  <circle cx="85" cy="38" r="18" fill="url(#bearBody)"/>
+  <circle cx="35" cy="38" r="11" fill="#d4a070"/>
+  <circle cx="85" cy="38" r="11" fill="#d4a070"/>
+  <!-- Head -->
+  <circle cx="60" cy="62" r="38" fill="url(#bearBody)"/>
+  <!-- Face -->
+  <ellipse cx="60" cy="74" rx="18" ry="12" fill="#c08858"/>
+  <!-- Eyes (wide/waiting) -->
+  <ellipse cx="46" cy="58" rx="7" ry="8" fill="#2a1a0a"/>
+  <ellipse cx="74" cy="58" rx="7" ry="8" fill="#2a1a0a"/>
+  <circle cx="48" cy="55" r="2.5" fill="white"/>
+  <circle cx="76" cy="55" r="2.5" fill="white"/>
+  <!-- Nose -->
+  <ellipse cx="60" cy="70" rx="7" ry="5" fill="#5a3020"/>
+  <!-- Mouth (waiting/hopeful) -->
+  <path d="M52,78 Q60,85 68,78" stroke="#5a3020" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Body -->
+  <ellipse cx="60" cy="128" rx="30" ry="26" fill="url(#bearBody)"/>
+  <!-- Arms (relaxed) -->
+  <ellipse cx="25" cy="122" rx="12" ry="18" fill="url(#bearBody)" transform="rotate(15,25,122)"/>
+  <ellipse cx="95" cy="122" rx="12" ry="18" fill="url(#bearBody)" transform="rotate(-15,95,122)"/>
+  <!-- Tummy -->
+  <ellipse cx="60" cy="130" rx="18" ry="15" fill="#d4a070"/>
+  <!-- Blush -->
+  <ellipse cx="40" cy="70" rx="8" ry="5" fill="#e87080" opacity="0.35"/>
+  <ellipse cx="80" cy="70" rx="8" ry="5" fill="#e87080" opacity="0.35"/>
+</svg>

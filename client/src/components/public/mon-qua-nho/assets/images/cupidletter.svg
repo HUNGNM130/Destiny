@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" width="200" height="220">
+  <defs>
+    <linearGradient id="skin" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fddbb0"/>
+      <stop offset="100%" style="stop-color:#f5c090"/>
+    </linearGradient>
+    <linearGradient id="wing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff" stop-opacity="0.9"/>
+      <stop offset="100%" style="stop-color:#ffd1e8" stop-opacity="0.6"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Wings -->
+  <ellipse cx="50" cy="100" rx="45" ry="28" fill="url(#wing)" stroke="#f8c0d8" stroke-width="1" transform="rotate(-20,50,100)" opacity="0.85"/>
+  <ellipse cx="150" cy="100" rx="45" ry="28" fill="url(#wing)" stroke="#f8c0d8" stroke-width="1" transform="rotate(20,150,100)" opacity="0.85"/>
+  <!-- Body -->
+  <ellipse cx="100" cy="125" rx="22" ry="26" fill="url(#skin)"/>
+  <!-- Head -->
+  <circle cx="100" cy="82" r="26" fill="url(#skin)"/>
+  <!-- Hair -->
+  <path d="M78,70 Q90,52 100,58 Q110,52 122,70" fill="#f5c090" stroke="#e8a870" stroke-width="1.5" fill-opacity="0.3"/>
+  <circle cx="87" cy="66" r="7" fill="#f5d0a0"/>
+  <circle cx="113" cy="66" r="7" fill="#f5d0a0"/>
+  <!-- Eyes -->
+  <ellipse cx="92" cy="84" rx="5" ry="4" fill="#4a2010"/>
+  <ellipse cx="108" cy="84" rx="5" ry="4" fill="#4a2010"/>
+  <circle cx="94" cy="82" r="1.5" fill="white"/>
+  <circle cx="110" cy="82" r="1.5" fill="white"/>
+  <!-- Blush -->
+  <ellipse cx="85" cy="92" rx="7" ry="4" fill="#f090a0" opacity="0.4"/>
+  <ellipse cx="115" cy="92" rx="7" ry="4" fill="#f090a0" opacity="0.4"/>
+  <!-- Smile -->
+  <path d="M92,97 Q100,104 108,97" stroke="#c06050" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Arrow -->
+  <line x1="55" y1="150" x2="145" y2="130" stroke="#c09060" stroke-width="3" stroke-linecap="round"/>
+  <path d="M140,122 L150,128 L138,134 Z" fill="#c09060"/>
+  <path d="M62,145 L52,156 L58,143 Z" fill="#c09060"/>
+  <!-- Heart on arrow -->
+  <g transform="translate(100,136)">
+    <path d="M0,-6 C0,-10 -7,-10 -7,-5 C-7,0 0,6 0,6 C0,6 7,0 7,-5 C7,-10 0,-10 0,-6 Z" fill="#e8507a" filter="url(#glow)"/>
+  </g>
+  <!-- Sparkles -->
+  <text x="30" y="55" font-size="14" opacity="0.8">✨</text>
+  <text x="155" y="60" font-size="12" opacity="0.7">⭐</text>
+  <text x="165" y="155" font-size="10" opacity="0.6">✨</text>
+</svg>
