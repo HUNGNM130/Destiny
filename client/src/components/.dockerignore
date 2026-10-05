@@ -1,0 +1,9 @@
+node_modules
+client/node_modules
+.git
+.env
+.env.*
+uploads
+uploads-video
+*.log
+.DS_Store
