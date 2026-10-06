@@ -58,6 +58,58 @@ function requireAdmin(req, res, next) {
   res.status(401).json({ error: "Cần đăng nhập admin" });
 }
 
+// ─── Mật khẩu tình yêu (vào app) ──────────────────────────────────────────────
+// Mật khẩu lưu trong DB dưới dạng hash scrypt (key "lovePasswordHash"), đổi được ở tab Admin.
+// Nhập đúng → server trả token ký HMAC; client gửi lại qua header "X-Love-Token".
+// Đổi mật khẩu → salt mới → mọi token cũ tự hết hiệu lực.
+const LOVE_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+let loveRecord = null; // { salt, hash } — cache trong RAM, nạp lúc khởi động
+
+const loveSecret = () => adminSecret() + "|love";
+
+function makeLoveRecord(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(String(password), salt, 32).toString("hex");
+  return { salt, hash };
+}
+function parseLoveRecord(value) {
+  const [salt, hash] = String(value || "").split(":");
+  return salt && hash ? { salt, hash } : null;
+}
+function checkLovePassword(password) {
+  if (!loveRecord || typeof password !== "string") return false;
+  const a = Buffer.from(crypto.scryptSync(password, loveRecord.salt, 32).toString("hex"));
+  const b = Buffer.from(loveRecord.hash);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function signLoveToken() {
+  const payload = Buffer.from(JSON.stringify({ exp: Date.now() + LOVE_TOKEN_TTL_MS, v: loveRecord.salt.slice(0, 8) })).toString("base64url");
+  const sig = crypto.createHmac("sha256", loveSecret()).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
+}
+function verifyLoveToken(token) {
+  if (!loveRecord || !token || typeof token !== "string") return false;
+  const [payload, sig] = token.split(".");
+  if (!payload || !sig) return false;
+  const expected = crypto.createHmac("sha256", loveSecret()).update(payload).digest("base64url");
+  const a = Buffer.from(sig), b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+  try {
+    const { exp, v } = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return typeof exp === "number" && exp > Date.now() && v === loveRecord.salt.slice(0, 8);
+  } catch { return false; }
+}
+function hasLoveAccess(req) {
+  if (verifyLoveToken(req.headers["x-love-token"])) return true;
+  const header = req.headers.authorization || "";
+  return header.startsWith("Bearer ") && verifyAdminToken(header.slice(7)); // admin luôn được vào
+}
+function requireLove(req, res, next) {
+  if (hasLoveAccess(req)) return next();
+  res.set("X-Love-Required", "1");
+  res.status(401).json({ error: "Cần mật khẩu tình yêu" });
+}
+
 // ─── Database ─────────────────────────────────────────────────────────────────
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -271,6 +323,18 @@ const pool = new Pool({
     }
     await pool.query("UPDATE gift_config SET config_value='assets/images/couple.svg' WHERE config_key='appIcon' AND config_value='assets/images/couple.png'").catch(() => {});
 
+    // Mật khẩu tình yêu: lần đầu lấy từ env LOVE_PASSWORD (mặc định 4805), sau đó đổi trong Admin
+    const lp = await pool.query("SELECT config_value FROM gift_config WHERE config_key='lovePasswordHash'");
+    loveRecord = parseLoveRecord(lp.rows[0]?.config_value);
+    if (!loveRecord) {
+      loveRecord = makeLoveRecord(process.env.LOVE_PASSWORD || "4805");
+      await pool.query(
+        `INSERT INTO gift_config (config_key, config_value) VALUES ('lovePasswordHash', $1)
+         ON CONFLICT (config_key) DO UPDATE SET config_value = $1`,
+        [`${loveRecord.salt}:${loveRecord.hash}`]
+      );
+    }
+
     console.log("✅ Tables ready");
   } catch (err) {
     console.error("❌ DB init error:", err);
@@ -339,6 +403,11 @@ const uploadMusic = multer({
 });
 
 // ─── Socket.io ────────────────────────────────────────────────────────────────
+io.use((socket, next) => {
+  const token = socket.handshake.auth && socket.handshake.auth.token;
+  if (verifyLoveToken(token)) return next();
+  next(new Error("Cần mật khẩu tình yêu"));
+});
 io.on("connection", (socket) => {
   console.log("🟢 User connected");
   socket.on("moveMemory",   (d) => socket.broadcast.emit("memoryMoved", d));
@@ -347,6 +416,54 @@ io.on("connection", (socket) => {
   socket.on("deleteVideo",  (d) => socket.broadcast.emit("videoDeleted", d));
   socket.on("cursorMove",   (d) => socket.broadcast.emit("cursorMoved", d));
   socket.on("disconnect",   ()  => console.log("🔴 User disconnected"));
+});
+
+// ─── Bảo vệ các API dữ liệu bằng mật khẩu tình yêu ─────────────────────────────
+// (Để public: gift-config, ảnh/nhạc tải bằng thẻ <img>/<audio>, link chia sẻ, healthz)
+app.use([
+  "/memories", "/videos", "/youtube-mp3",
+  "/api/diary-entries", "/api/bucket-items", "/api/goodnight-messages",
+  "/api/reminders", "/api/letters", "/api/anniversary-events",
+  "/api/ai-love-letter", "/api/geocode", "/api/music-upload",
+], requireLove);
+
+// POST /api/love-verify → nhập mật khẩu tình yêu (khoá 60s sau 5 lần sai)
+const loveAttempts = new Map();
+app.post("/api/love-verify", (req, res) => {
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const record = loveAttempts.get(ip) || { count: 0, lockedUntil: 0 };
+  if (record.lockedUntil > now) {
+    const wait = Math.ceil((record.lockedUntil - now) / 1000);
+    return res.status(429).json({ ok: false, message: `Thử lại sau ${wait}s` });
+  }
+  if (!loveRecord) return res.status(503).json({ ok: false, message: "Server đang khởi động, thử lại sau" });
+  if (checkLovePassword(req.body && req.body.pin)) {
+    loveAttempts.delete(ip);
+    return res.json({ ok: true, token: signLoveToken() });
+  }
+  record.count += 1;
+  if (record.count >= 5) { record.lockedUntil = now + 60_000; record.count = 0; }
+  loveAttempts.set(ip, record);
+  res.json({ ok: false });
+});
+
+// PUT /api/admin/love-password → admin đổi mật khẩu tình yêu (đúng 4 chữ số)
+app.put("/api/admin/love-password", requireAdmin, async (req, res) => {
+  const password = req.body && req.body.password;
+  if (typeof password !== "string" || !/^\d{4}$/.test(password)) {
+    return res.status(400).json({ error: "Mật khẩu phải gồm đúng 4 chữ số" });
+  }
+  try {
+    const rec = makeLoveRecord(password);
+    await pool.query(
+      `INSERT INTO gift_config (config_key, config_value, updated_at) VALUES ('lovePasswordHash', $1, NOW())
+       ON CONFLICT (config_key) DO UPDATE SET config_value = $1, updated_at = NOW()`,
+      [`${rec.salt}:${rec.hash}`]
+    );
+    loveRecord = rec;
+    res.json({ success: true, token: signLoveToken() }); // token mới cho phiên admin hiện tại
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── Admin PIN Verify ──────────────────────────────────────────────────────────
@@ -386,7 +503,7 @@ app.get("/api/gift-config", async (req, res) => {
   try {
     const r = await pool.query("SELECT config_key, config_value FROM gift_config");
     const cfg = {};
-    for (const row of r.rows) cfg[row.config_key] = row.config_value;
+    for (const row of r.rows) if (row.config_key !== "lovePasswordHash") cfg[row.config_key] = row.config_value;
     res.json(cfg);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -398,6 +515,7 @@ app.put("/api/gift-config", requireAdmin, async (req, res) => {
   try {
     const updates = req.body;
     for (const [k, v] of Object.entries(updates)) {
+      if (k === "lovePasswordHash") continue; // chỉ đổi qua /api/admin/love-password
       await pool.query(
         `INSERT INTO gift_config (config_key, config_value, updated_at)
          VALUES ($1, $2, NOW())
@@ -963,7 +1081,7 @@ app.get("/api/admin/backup", requireAdmin, async (req, res) => {
       pool.query("SELECT * FROM memories ORDER BY date DESC, id DESC"),
       pool.query("SELECT * FROM videos ORDER BY date DESC, id DESC"),
       pool.query("SELECT * FROM love_letters ORDER BY unlock_at ASC, id DESC"),
-      pool.query("SELECT config_key, config_value FROM gift_config ORDER BY config_key ASC"),
+      pool.query("SELECT config_key, config_value FROM gift_config WHERE config_key <> 'lovePasswordHash' ORDER BY config_key ASC"),
       pool.query("SELECT * FROM anniversary_events ORDER BY event_date ASC, id DESC"),
       pool.query("SELECT * FROM diary_entries ORDER BY entry_date DESC"),
       pool.query("SELECT * FROM bucket_items ORDER BY done ASC, created_at DESC"),

@@ -20,10 +20,13 @@ import { DiaryTab } from './components/DiaryTab';
 import { BucketListTab } from './components/BucketListTab';
 import { GoodNightTab } from './components/GoodNightTab';
 import { CollageTab } from './components/CollageTab';
+import { GameTab } from './components/GameTab';
 import { RandomMemoryFlip } from './components/RandomMemoryFlip';
 import { GlobalSearch } from './components/GlobalSearch';
 import { OnThisDayBanner } from './components/OnThisDayBanner';
 import { AdminGate } from './components/AdminGate';
+import { LoveGate } from './components/LoveGate';
+import { getLoveToken, clearLoveToken, installLoveFetch, LOVE_LOCK_EVENT } from './utils/loveAuth';
 import { MemoryFormModal } from './components/MemoryFormModal';
 import { VideoFormModal } from './components/VideoFormModal';
 import { VideoPlayerModal } from './components/VideoPlayerModal';
@@ -41,7 +44,22 @@ export const BASE_URL = typeof window !== 'undefined' && !isLocalhost ? window.l
 export const API_URL = `${BASE_URL}/memories`;
 export const VIDEO_API_URL = `${BASE_URL}/videos`;
 
+installLoveFetch();
+
+// Vỏ ngoài: chưa có token tình yêu thì chỉ hiện màn hình nhập mật khẩu,
+// chưa tải bất kỳ dữ liệu nào của app.
 export default function App() {
+  const [unlocked, setUnlocked] = useState(!!getLoveToken());
+  useEffect(() => {
+    const lock = () => { clearLoveToken(); setUnlocked(false); };
+    window.addEventListener(LOVE_LOCK_EVENT, lock);
+    return () => window.removeEventListener(LOVE_LOCK_EVENT, lock);
+  }, []);
+  if (!unlocked) return <LoveGate onUnlocked={() => setUnlocked(true)} />;
+  return <MainApp />;
+}
+
+function MainApp() {
   const [introDone, setIntroDone] = useState(false);
   const [tab, setTab] = useState<Tab>('photos');
   const [adminUnlocked, setAdminUnlocked] = useState(false);
@@ -275,6 +293,8 @@ export default function App() {
         )}
 
         {show('gift') && <GiftTab />}
+
+        {show('game') && <GameTab onSkip={() => setTab('photos')} />}
 
         {tab === 'dashboard' && adminUnlocked && <DashboardTab />}
 

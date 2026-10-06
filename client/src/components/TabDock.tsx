@@ -20,6 +20,7 @@ export const TABS: { id: Tab; emoji: string; label: string }[] = [
   { id: 'camera',    emoji: '📸', label: 'Camera'  },
   { id: 'gallery',   emoji: '✨', label: 'Tập chính' },
   { id: 'gift',      emoji: '🎁', label: 'Quà tặng' },
+  { id: 'game',      emoji: '🧸', label: 'Mushies' },
 ];
 
 const BASE_SIZE   = 52;   // px — resting item size

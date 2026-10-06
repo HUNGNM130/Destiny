@@ -15,7 +15,8 @@ export type Tab =
   | 'diary'
   | 'bucket'
   | 'night'
-  | 'collage';
+  | 'collage'
+  | 'game';
 
 export interface Memory {
   id: number;
