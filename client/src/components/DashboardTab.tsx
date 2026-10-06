@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { API_URL, BASE_URL, VIDEO_API_URL } from '../App';
 import { adminFetch } from '../utils/adminAuth';
+import { setLoveToken } from '../utils/loveAuth';
 import { exportMemoriesToPDF } from '../utils/exportMemoriesPdf';
 import { toast } from './SweetAlert';
 import { applySiteStyleConfig, FONT_OPTIONS, SITE_STYLE_DEFAULTS, FONT_SCALE_MIN, FONT_SCALE_MAX, parseHiddenTabs } from '../utils/siteStyle';
@@ -248,6 +249,31 @@ export function DashboardTab() {
       toast('Lỗi kết nối!', 'error');
     }
     setSaving(false);
+  };
+
+  const [lovePw, setLovePw] = useState('');
+  const [lovePwSaving, setLovePwSaving] = useState(false);
+  const saveLovePassword = async () => {
+    if (!/^\d{4}$/.test(lovePw)) { toast('Mật khẩu phải gồm đúng 4 chữ số', 'error'); return; }
+    setLovePwSaving(true);
+    try {
+      const res = await adminFetch(`${BASE_URL}/api/admin/love-password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: lovePw }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (data.token) setLoveToken(data.token);
+        setLovePw('');
+        toast('Đã đổi mật khẩu tình yêu 💕', 'success');
+      } else {
+        toast(data.error || 'Không đổi được mật khẩu', 'error');
+      }
+    } catch {
+      toast('Lỗi kết nối!', 'error');
+    }
+    setLovePwSaving(false);
   };
 
   const uploadImage = async (file: File) => {
@@ -589,6 +615,25 @@ export function DashboardTab() {
               <input type="date" className="db-input" value={cfg.loveStartDate} onChange={e => field('loveStartDate', e.target.value)} />
               <label className="db-label">Thông báo nổi trên trang chủ</label>
               <textarea className="db-textarea" rows={3} value={cfg.siteGlobalNotice} onChange={e => field('siteGlobalNotice', e.target.value)} placeholder="Ví dụ: Có một kỷ niệm mới vừa được thêm vào..." />
+            </div>
+
+            <div className="db-card">
+              <div className="db-card-title">💕 Mật khẩu tình yêu (vào app)</div>
+              <p className="db-help">Mật khẩu 4 số để vào app, kiểm tra ở server. Đổi xong, những ai đang đăng nhập bằng mật khẩu cũ sẽ phải nhập lại.</p>
+              <label className="db-label">Mật khẩu mới (4 chữ số)</label>
+              <input
+                className="db-input"
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                value={lovePw}
+                maxLength={4}
+                onChange={e => setLovePw(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••"
+              />
+              <button className="db-btn-save" style={{ marginTop: 12 }} onClick={saveLovePassword} disabled={lovePwSaving || lovePw.length !== 4}>
+                {lovePwSaving ? 'Đang lưu...' : 'Đổi mật khẩu'}
+              </button>
             </div>
 
             <div className="db-card">

@@ -3,7 +3,9 @@ import React, { useRef, useState } from 'react';
 const GAME_URL = '/games/mushies/index.html';
 
 // Game ~47MB nên chỉ tải khi bấm "Chơi", không tải ngầm khi mở tab.
-export function GameTab() {
+interface Props { onSkip: () => void; }
+
+export function GameTab({ onSkip }: Props) {
   const [playing, setPlaying] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
 
@@ -19,6 +21,7 @@ export function GameTab() {
         <h2 className="gift-tab-title">Mushies</h2>
         <p className="gift-tab-sub">Thả plushie, ghép những bé giống nhau và xây đống ôm lớn nhất trước khi bàn chơi đầy.</p>
         <button className="gift-tab-btn" onClick={() => setPlaying(true)}>🎮 Chơi ngay</button>
+        <button className="game-tab-mini" style={{ marginTop: 12 }} onClick={onSkip}>Bỏ qua ⏭</button>
         <p className="gift-tab-hint">Lần đầu có thể mất vài giây để tải game</p>
       </div>
     );
@@ -29,6 +32,7 @@ export function GameTab() {
       <div className="game-tab-bar">
         <button className="game-tab-mini" onClick={goFullscreen}>⛶ Toàn màn hình</button>
         <button className="game-tab-mini" onClick={() => setPlaying(false)}>✕ Thoát</button>
+        <button className="game-tab-mini" onClick={onSkip}>Bỏ qua ⏭</button>
       </div>
       <iframe
         ref={frameRef}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { BASE_URL } from '../types';
 import type { Memory, Video } from '../types';
+import { getLoveToken } from '../utils/loveAuth';
 
 interface SocketCallbacks {
   onMemoryAdded?: (m: Memory) => void;
@@ -21,9 +22,9 @@ export function useSocket(callbacks: SocketCallbacks) {
     // Dynamically load socket.io
     const existingScript = document.getElementById('socket-io-script');
     const init = () => {
-      const io = (window as unknown as { io?: (url: string) => unknown }).io;
+      const io = (window as unknown as { io?: (url: string, opts?: object) => unknown }).io;
       if (!io) return;
-      const socket = io(BASE_URL) as {
+      const socket = io(BASE_URL, { auth: { token: getLoveToken() } }) as {
         on: (event: string, cb: (data: unknown) => void) => void;
         off: (event: string) => void;
         disconnect: () => void;
